@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>Keith Tran - Assignment 0: Vector Library</title>
+    </head>
+
+    <body onload="main()">
+    <canvas id="example" width="400" height="400">
+    Please use a browser that supports "canvas"
+    </canvas>
+    <br><br>
+
+    <div>
+        x1: x
+            <input type="number" id="xCoord">
+            y <input type="number" id="yCoord">
+        <br>
+        x2: x
+            <input type="number" id="xCoord2">
+            y <input type="number" id="yCoord2">
+        <br> <br>
+        <button id="drawButton">Draw</button>
+        <br> <br>
+        <h3 style="display: inline;"> Operation:</h3>
+            <select id="operation">
+                <option value="add">Add</option>
+                <option value="sub">Subtract</option>
+                <option value="mul">Multiply</option>
+                <option value="div">Divide</option>
+                <option value="mag">Magnitude</option>
+                <option value="norm">Normalize</option>
+                <option value="angleBtwn">Angle Between</option>
+                <option value="area">Area</option>
+            </select>
+        <h3 style="display: inline;">Scalar: <input type="number" id="Scalar"> </h3>    
+        <br><br>
+        <button id="operationButton">Draw</button>
+    </div>
+    <script src="lib\cuon-matrix-cse160.js"></script>
+    <script src="asg0.js"></script>
+
+    </body>
+</html>
