@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Keith Tran - Assignment 1</title>
+  </head>
+
+  <body onload="main()">
+    <canvas id="webgl" width="400" height="400">
+    Please use a browser that supports "canvas"
+    </canvas>
+    <br><br>
+    <p id="numdot">XXX</p>
+    
+     <button type="button" id ="clearButton">Clear Canvas</button>
+     <br> <br>
+    <button type = "button" id ="green">Green</button>
+    <button type = "button" id ="red">Red</button>
+    <button type = "button" id ="blue">Blue</button>
+
+    <br>
+    <br>
+    <button type="button" id ="pointButton">Point</button>
+    <button type="button" id ="triButton">Triangle</button>
+    <button type="button" id ="circleButton">Circle</button>
+    
+    
+    <br>
+    <br>
+    
+    Red <input type="range" min="0" max = "100" value="100" class="slider" id="redSlide">
+    <br>
+    Green <input type="range" min="0" max = "100" value="100" class="slider" id="greenSlide">
+    <br>
+    Blue <input type="range" min="0" max = "100" value="100" class="slider" id="blueSlide">
+    <br>
+    Size <input type="range" min="5" max = "40" value="5" class="slider" id="sizeSlide">
+    Circle Segment Count <input type="range" min="10" max = "100" value="10" class="slider" id="circleSlide">
+    
+    <script src="../lib/webgl-utils.js"></script>
+    <script src="../lib/webgl-debug.js"></script>
+    <script src="../lib/cuon-utils.js"></script>
+    <script src="triangle.js"></script>
+    <script src="point.js"></script>
+    <script src="circle.js"></script>
+    <script src="asgn1.js"></script>
+    <br><br>
+    
+    <br>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <h3>Shark Picture Feature:</h3>
+      <button type="button" id="drawSharkButton">Draw Shark Picture</button>
+    </div>
+
+    <p>Click the Draw Shark Picture button to draw my picture in the canvas.</p>
+
+    <img src="sharkdraw.png" style="width: 300px; height: auto;">
+
+
+   
+  </body>
+</html>
