@@ -20,13 +20,29 @@
 
     <br>
     <br>
+    <!-- hide input button -->
+    <input type="color" id="colorPicker" value="#ffffff" style="display: none;">
+
+    <button type="button" id="colorPickerButton">Pick your Custom Color</button>
+    <button type="button" id="rainbowButton"> Rainbow Mode OFF</button>
+    <button type="button" id="exportButton"> Save as PNG</button>
+
+    <br>
+    <br>
+
     <button type="button" id ="pointButton">Point</button>
     <button type="button" id ="triButton">Triangle</button>
     <button type="button" id ="circleButton">Circle</button>
+    <button type="button" id="eraserButton">Eraser</button>
     
-    
+    <br><br>
+    <button type="button" id="undoButton">Undo</button>
+    <button type="button" id="redoButton">Redo</button>
     <br>
-    <br>
+    <p id="undoRedoStatus">Actions: 0 | Undos available: 0 | Redos available: 0</p>
+
+
+
     
     Red <input type="range" min="0" max = "100" value="100" class="slider" id="redSlide">
     <br>
@@ -36,6 +52,10 @@
     <br>
     Size <input type="range" min="5" max = "40" value="5" class="slider" id="sizeSlide">
     Circle Segment Count <input type="range" min="10" max = "100" value="10" class="slider" id="circleSlide">
+    <br>
+    Rainbow Speed <input type="range" min="1" max="50" value="10" class="slider" id="rainbowSpeedSlide">
+    <br>
+    Eraser Size <input type="range" min="1" max="50" value="10" class="slider" id="eraserSizeSlide">
     
     <script src="../lib/webgl-utils.js"></script>
     <script src="../lib/webgl-debug.js"></script>
@@ -46,9 +66,9 @@
     <script src="asgn1.js"></script>
     <br><br>
     
-    <br>
 
-    <div style="display: flex; align-items: center; gap: 10px;">
+
+    <div>
       <h3>Shark Picture Feature:</h3>
       <button type="button" id="drawSharkButton">Draw Shark Picture</button>
     </div>
@@ -57,7 +77,16 @@
 
     <img src="sharkdraw.png" style="width: 300px; height: auto;">
 
+    <div>
+    <h3>Bonus Features Implemented: (For 13. Awesomeness!)</h3>
+    <ul>
+      <li><strong>Rainbow Mode:</strong> Click the rainbow button to enable time and position based colors that change as you use the brush.</li>
+      <li><strong>Eraser Tool:</strong> Select the eraser to remove shapes. Adjust eraser size with the slider.</li>
+      <li><strong>Undo/Redo System:</strong> Undo/Redo Button:up to 20 steps for the amount of times you can undo.</li>
+      <li><strong>Export as PNG:</strong> Save PNG file: export the current canvas a PNG: file name is: webgl-drawing-(time)</li>
+      <li><strong>Color Picker:</strong> Choose any color using the built-in color picker: brings up OS color picker</li>
+    </ul>
+    </div>
 
-   
   </body>
 </html>
