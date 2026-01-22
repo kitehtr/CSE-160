@@ -517,6 +517,31 @@ function drawSharkDirect() {
   drawPictureTriangle([0.3+dx, -0.7-dy, 0.4+dx, -0.7-dy, 0.3+dx, -0.85-dy], plantColor);
   drawPictureTriangle([0.4+dx, -0.7-dy, 0.4+dx, -0.85-dy, 0.3+dx, -0.85-dy], plantColor);
 
+  const initialsColor = [0.2, 0.8, 0.3, 1.0];
+
+  // T top
+  drawPictureTriangle([-0.225+dx, -0.50-dy, -0.210+dx, -0.50-dy, -0.225+dx, -0.65-dy], initialsColor);
+  drawPictureTriangle([-0.210+dx, -0.50-dy, -0.210+dx, -0.65-dy, -0.225+dx, -0.65-dy], initialsColor);
+
+  // T middle
+  drawPictureTriangle([-0.275+dx, -0.50-dy, -0.160+dx, -0.50-dy, -0.275+dx, -0.525-dy], initialsColor);
+  drawPictureTriangle([-0.160+dx, -0.50-dy, -0.160+dx, -0.525-dy, -0.275+dx, -0.525-dy], initialsColor);
+
+  // K spine
+  drawPictureTriangle([-0.340+dx, -0.50-dy, -0.310+dx, -0.50-dy, -0.340+dx, -0.65-dy], initialsColor);
+  drawPictureTriangle([-0.310+dx, -0.50-dy, -0.310+dx, -0.65-dy, -0.340+dx, -0.65-dy], initialsColor);
+
+  // K right up
+  drawPictureTriangle([-0.310+dx, -0.575-dy, -0.265+dx, -0.50-dy, -0.310+dx, -0.59-dy], initialsColor);
+  drawPictureTriangle([-0.265+dx, -0.50-dy, -0.265+dx, -0.525-dy, -0.310+dx, -0.59-dy], initialsColor);
+
+  // K right down
+  drawPictureTriangle([-0.310+dx, -0.56-dy, -0.265+dx, -0.65-dy, -0.310+dx, -0.575-dy], initialsColor);
+  drawPictureTriangle([-0.265+dx, -0.65-dy, -0.265+dx, -0.625-dy, -0.310+dx, -0.575-dy], initialsColor);
+
+
+
+
   // Fish variables
   // lighter orange
   const fishBodyTopColor = [1.0, 0.8, 0.3, 1.0]; 
@@ -566,6 +591,7 @@ function drawPictureTriangle(vertices, color) {
   // create and bind buffer
   var vertexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+  
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW);
   
   // set up attribute pointer
