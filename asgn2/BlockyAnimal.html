@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Keith Tran - Assignment 2</title>
+  </head>
+
+  <body onload="main()">
+    <canvas id="webgl" width="500" height="500">
+    Please use a browser that supports "canvas"
+    </canvas>
+    <br><br>
+    <p id="numdot">XXX</p>
+    
+     <button type="button" id ="clearButton">Clear Canvas</button>
+     <!-- <br> <br>
+    <button type = "button" id ="green">Green</button>
+    <button type = "button" id ="red">Red</button>
+    <button type = "button" id ="blue">Blue</button> -->
+
+    <br>
+    <br>
+    <!-- hide input button -->
+    <input type="color" id="colorPicker" value="#ffffff" style="display: none;">
+
+    <!-- <button type="button" id="colorPickerButton">Pick your Custom Color</button>
+    <button type="button" id="rainbowButton"> Rainbow Mode OFF</button>
+    <button type="button" id="exportButton"> Save as PNG</button> -->
+
+
+<!-- 
+    <button type="button" id ="pointButton">Point</button>
+    <button type="button" id ="triButton">Triangle</button>
+    <button type="button" id ="circleButton">Circle</button>
+    <button type="button" id="eraserButton">Eraser</button> -->
+    
+    <!-- <br><br>
+    <button type="button" id="undoButton">Undo</button>
+    <button type="button" id="redoButton">Redo</button>
+    <br> -->
+
+      <!-- Red <input type="range" min="0" max = "100" value="100" class="slider" id="redSlide">
+      <br>
+      Green <input type="range" min="0" max = "100" value="100" class="slider" id="greenSlide"> -->
+    <br>
+    beak <input type="range" min="0" max = "50" value="0" class="slider" id="BeakSlide">
+    Animation:
+    <button type = "button" id = animationBeakOnButton>ON</button>
+    <button type = "button" id = animationBeakOffButton>OFF</button>
+    <br>
+    Second level joint (Lower Leg) <input type="range" min="-5" max = "5" value="0" class="slider" id="jointSlide">
+    Animation:
+    <button type = "button" id = animationWalkOnButton>ON</button>
+    <button type = "button" id = animationWalkOffButton>OFF</button>
+    <br><br>
+    Camera Angle <input type="range" min="0" max = "720" value="5" class="slider" id="angleSlide">
+    <!-- Circle Segment Count <input type="range" min="10" max = "100" value="10" class="slider" id="circleSlide"> -->
+    <br>
+    <!-- Rainbow Speed <input type="range" min="1" max="50" value="10" class="slider" id="rainbowSpeedSlide">
+    <br>
+    Eraser Size <input type="range" min="1" max="50" value="10" class="slider" id="eraserSizeSlide"> -->
+    
+    <script src="lib/cuon-matrix.js"></script>
+    <script src="lib/cuon-utils.js"></script>
+    <script src="lib/webgl-utils.js"></script>
+    <script src="lib/webgl-debug.js"></script>
+    <script src="cylinder.js"></script>
+    <script src="triangle.js"></script>
+    <script src="point.js"></script>
+    <script src="circle.js"></script>
+    <script src="cube.js"></script>
+    <script src="BlockyAnimal.js"></script>
+    <br><br>
+    
+
+  </body>
+</html>
