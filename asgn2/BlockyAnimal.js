@@ -28,6 +28,8 @@ let u_GlobalRotateMatrix;
 let g_selectedSegments = 10;
 let g_yellowAnimation = false;
 let g_BeakAnimation = false;
+let g_ArmAnimation = false;
+let g_armManualAngle = 0;
 //mouse
 let g_mouseDown = false;
 let g_lastMouseX = null;
@@ -44,7 +46,16 @@ let g_pokeBodyJump = 0;
 let g_pokeArmFlap = 0;
 let g_pokeBeakOpen = 0;
 
-// Performance tracking
+// fall animation variables
+let g_fallAnimation = false;
+let g_fallStartTime = 0;
+let g_fallDuration = 2.0; 
+let g_fallRotation = 0; 
+let g_fallArmFlail = 0; 
+let g_fallYPosition = 0; 
+let g_fallXPosition = 0;
+
+// performance tracking
 let g_frameCount = 0;
 let g_lastFpsTime = 0;
 let g_fps = 0;
@@ -129,7 +140,7 @@ let g_walkAnimation = false;
 let g_startTime = performance.now() / 1000.0;
 let g_seconds = performance.now() / 1000.0 - g_startTime;
 
-// Performance optimization: Reusable objects
+// reuse objects
 let g_reuse = {
   matrices: {
     penguinBase: new Matrix4(),
@@ -171,7 +182,7 @@ let g_reuse = {
 };
 
 function initReusableShapes() {
-  // Initialize all shapes once
+  // initialize all shapes 
   g_reuse.shapes.head = new Cube();
   g_reuse.shapes.leftEye = new Cylinder();
   g_reuse.shapes.leftPupil = new Cylinder();
@@ -197,7 +208,7 @@ function initReusableShapes() {
   g_reuse.shapes.rightLeg = new Cube();
   g_reuse.shapes.rightFoot = new Cube();
   
-  // Set constant properties once
+  // set constant properties 
   g_reuse.shapes.leftEye.segments = 16;
   g_reuse.shapes.leftEye.radiusTop = 0.1;
   g_reuse.shapes.leftEye.radiusBottom = 0.1;
@@ -282,6 +293,35 @@ function addActionsForHTMLUI() {
     g_walkAnimation = false;
   };
 
+  document.getElementById('animationArmOnButton').onclick = function() {
+    g_ArmAnimation = true;
+  };
+
+  document.getElementById('animationArmOffButton').onclick = function() {
+    g_ArmAnimation = false;
+  };
+
+  document.getElementById('armSlide').addEventListener('input',
+  function() {
+    g_armManualAngle = parseFloat(this.value);
+    renderAllShapes();
+  });
+
+  // Add the fall button
+  document.getElementById('fallOverButton').onclick = function() {
+    g_fallAnimation = true;
+    g_fallStartTime = g_seconds;
+    g_fallRotation = 0;
+    g_fallArmFlail = 0;
+    g_fallYPosition = 0;
+    g_fallXPosition = 0;
+  };
+
+  // Add the reset button
+  document.getElementById('resetButton').onclick = function() {
+    resetPenguin();
+  };
+
   document.getElementById('BeakSlide').addEventListener('input',
   function() {
     g_BeakAngle = this.value;
@@ -301,6 +341,37 @@ function addActionsForHTMLUI() {
   });
 }
 
+// reset function to restore penguin to original state
+function resetPenguin() {
+  g_fallAnimation = false;
+  g_fallRotation = 0;
+  g_fallArmFlail = 0;
+  g_fallYPosition = 0;
+  g_fallXPosition = 0;
+  g_pokeAnimation = false;
+  g_pokeEyeScale = 1.0;
+  g_pokeBodyJump = 0;
+  g_pokeArmFlap = 0;
+  g_pokeBeakOpen = 0;
+  g_BeakAnimation = false;
+  g_walkAnimation = false;
+  g_ArmAnimation = false;
+  g_bodyWaddle = 0;
+  g_legWalkAngle = 0;
+  g_armSwingAngle = 0;
+  g_BeakAngle = 0;
+  g_lowerLegAngle = 0;
+  g_globalAngleX = 0;
+  g_globalAngleY = 0;
+  
+  // Reset sliders
+  document.getElementById('BeakSlide').value = 0;
+  document.getElementById('jointSlide').value = 0;
+  document.getElementById('angleSlide').value = 5;
+  document.getElementById('armSlide').value = 0;
+  renderAllShapes();
+}
+
 function updatePerformanceDisplay(duration) {
   g_frameCount++;
   let currentTime = performance.now();
@@ -315,7 +386,10 @@ function updatePerformanceDisplay(duration) {
   // Update display
   let fpsText = `FPS: ${g_fps} | Render: ${Math.round(duration)}ms`;
   if (g_pokeAnimation) {
-    fpsText += " |  Poked!";
+    fpsText += " | Poked!";
+  }
+  if (g_fallAnimation) {
+    fpsText += " | Falling!";
   }
   sendTextToHTML(fpsText, "numdot");
 }
@@ -323,6 +397,8 @@ function updatePerformanceDisplay(duration) {
 function initSliders() {
   // Initialize slider to match current rotation
   document.getElementById('angleSlide').value = g_globalAngleY * 2;
+  document.getElementById('angleSlide').value = g_globalAngleY * 2;
+  document.getElementById('armSlide').value = g_armManualAngle;
 }
 
 function main() {
@@ -374,9 +450,21 @@ function updateAnimationAngles() {
     g_bodyWaddle = (3 * Math.sin(2 * g_seconds));
     g_armSwingAngle = (25 * Math.sin(1 * g_seconds));
   }
+
+  if (g_ArmAnimation && !g_walkAnimation) {
+    // Independent arm swinging animation
+    g_armSwingAngle = (25 * Math.sin(2 * g_seconds));
+  } else if (!g_walkAnimation && !g_ArmAnimation) {
+    // Use manual slider value when no animation is active
+    g_armSwingAngle = g_armManualAngle;
+  }
+  
   
   // Update poke animation
   updatePokeAnimation();
+  
+  // Update fall animation
+  updateFallAnimation();
 }
 
 function updatePokeAnimation() {
@@ -392,21 +480,38 @@ function updatePokeAnimation() {
       g_pokeArmFlap = 0;
       g_pokeBeakOpen = 0;
     } else {
-      // Surprised reaction: eyes get big, body jumps, arms flap, beak opens
-      // Use sin for smooth animation
+      // surprised reaction: eyes get big, body jumps, arms flap, beak opens
       let wave = Math.sin(progress * Math.PI);
-      
-      // Eyes expand then return to normal
       g_pokeEyeScale = 1.0 + (0.8 * wave);
-      
-      // Body jumps up
       g_pokeBodyJump = 0.4 * wave;
-      
-      // Arms flap outward rapidly
       g_pokeArmFlap = 40 * Math.sin(progress * Math.PI * 4);
-      
-      // Beak opens wide in surprise
       g_pokeBeakOpen = 50 * wave;
+    }
+  }
+}
+
+function updateFallAnimation() {
+  if (g_fallAnimation) {
+    let elapsed = g_seconds - g_fallStartTime;
+    let progress = Math.min(elapsed / g_fallDuration, 1.0);
+    let easeProgress = 1 - Math.pow(1 - progress, 3);
+    if (progress < 0.4) {
+      let phase1Progress = progress / 0.4;
+      g_fallRotation = 90 * phase1Progress;
+      g_fallArmFlail = 60 * Math.sin(phase1Progress * Math.PI * 8);
+    } 
+    else {
+      let phase2Progress = (progress - 0.4) / 0.6;
+      g_fallRotation = 90;
+      g_fallArmFlail = 40 * Math.sin(phase2Progress * Math.PI * 4);
+      g_fallYPosition = -3.0 * phase2Progress;
+      g_fallXPosition = 0.5 * Math.sin(phase2Progress * Math.PI); 
+    }
+    
+    if (progress >= 1.0) {
+      setTimeout(() => {
+        resetPenguin();
+      }, 1000);
     }
   }
 }
@@ -437,251 +542,249 @@ function click(ev) {
 
 function renderAllShapes() {
   let startTime = performance.now();
-  
-  // Use reusable matrix
   let globalRotMatr = g_reuse.matrices.globalRotMatr;
   globalRotMatr.setIdentity();
   globalRotMatr.rotate(g_globalAngleX, 1, 0, 0);
   globalRotMatr.rotate(g_globalAngleY + 180, 0, 1, 0);
   
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMatr.elements);
-
-  // Clear canvas with blue background 
   gl.clearColor(0.7, 0.85, 1.0, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  if (g_fallYPosition > -2.5) { 
+    // penguin base matrix using reusable matrix
+    let penguinBase = g_reuse.matrices.penguinBase;
+    penguinBase.setIdentity();
+    penguinBase.translate(g_fallXPosition, g_pokeBodyJump + g_fallYPosition, 0);  
+    penguinBase.scale(0.8, 0.8, 0.8);
+    penguinBase.rotate(g_bodyWaddle, 0, 0, 1);
+    penguinBase.rotate(g_fallRotation, 0, 0, 1);
+    
+    let penguinBaseMatrix = g_reuse.matrices.penguinBaseMatrix;
+    penguinBaseMatrix.set(penguinBase);
 
-  // penguin base matrix using reusable matrix
-  let penguinBase = g_reuse.matrices.penguinBase;
-  penguinBase.setIdentity();
-  penguinBase.translate(0, g_pokeBodyJump, 0);  // Add jump from poke animation
-  penguinBase.scale(0.8, 0.8, 0.8);
-  penguinBase.rotate(g_bodyWaddle, 0, 0, 1);
-  
-  let penguinBaseMatrix = g_reuse.matrices.penguinBaseMatrix;
-  penguinBaseMatrix.set(penguinBase);
+    //head 
+    let head = g_reuse.shapes.head;
+    head.color = [0.1, 0.1, 0.1, 1.0];
+    head.matrix.set(penguinBaseMatrix);
+    head.matrix.translate(-0.35, 0.2, -0.2);
+    head.matrix.scale(0.7, 0.7, 0.5);
+    head.render();
 
-  //head 
-  let head = g_reuse.shapes.head;
-  head.color = [0.1, 0.1, 0.1, 1.0];
-  head.matrix.set(penguinBaseMatrix);
-  head.matrix.translate(-0.35, 0.2, -0.2);
-  head.matrix.scale(0.7, 0.7, 0.5);
-  head.render();
+    // left eye with poke scaling
+    let leftEye = g_reuse.shapes.leftEye;
+    leftEye.color = [0.98, 0.98, 0.98, 1.0];
+    leftEye.matrix.set(penguinBaseMatrix);
+    leftEye.matrix.translate(0.15, 0.6, 0.25);
+    leftEye.matrix.rotate(90, 1, 0, 0);
+    leftEye.matrix.scale(1.5 * g_pokeEyeScale, 0.8 * g_pokeEyeScale, 1.2 * g_pokeEyeScale);
+    leftEye.render();
 
-  // left eye with poke scaling
-  let leftEye = g_reuse.shapes.leftEye;
-  leftEye.color = [0.98, 0.98, 0.98, 1.0];
-  leftEye.matrix.set(penguinBaseMatrix);
-  leftEye.matrix.translate(0.15, 0.6, 0.25);
-  leftEye.matrix.rotate(90, 1, 0, 0);
-  leftEye.matrix.scale(1.5 * g_pokeEyeScale, 0.8 * g_pokeEyeScale, 1.2 * g_pokeEyeScale);
-  leftEye.render();
+    let leftPupil = g_reuse.shapes.leftPupil;
+    leftPupil.color = [0.1, 0.1, 0.1, 1.0];
+    leftPupil.matrix.set(penguinBaseMatrix);
+    leftPupil.matrix.translate(0.15, 0.6, 0.38);
+    leftPupil.matrix.rotate(90, 1, 0, 0);
+    leftPupil.matrix.scale(g_pokeEyeScale, g_pokeEyeScale, g_pokeEyeScale);
+    leftPupil.render();
 
-  let leftPupil = g_reuse.shapes.leftPupil;
-  leftPupil.color = [0.1, 0.1, 0.1, 1.0];
-  leftPupil.matrix.set(penguinBaseMatrix);
-  leftPupil.matrix.translate(0.15, 0.6, 0.38);
-  leftPupil.matrix.rotate(90, 1, 0, 0);
-  leftPupil.matrix.scale(g_pokeEyeScale, g_pokeEyeScale, g_pokeEyeScale);
-  leftPupil.render();
+    // right eye with poke scaling
+    let rightEye = g_reuse.shapes.rightEye;
+    rightEye.color = [0.98, 0.98, 0.98, 1.0];
+    rightEye.matrix.set(penguinBaseMatrix);
+    rightEye.matrix.translate(-0.15, 0.6, 0.25);
+    rightEye.matrix.rotate(90, 1, 0, 0);
+    rightEye.matrix.scale(1.5 * g_pokeEyeScale, 0.8 * g_pokeEyeScale, 1.2 * g_pokeEyeScale);
+    rightEye.render();
 
-  // right eye with poke scaling
-  let rightEye = g_reuse.shapes.rightEye;
-  rightEye.color = [0.98, 0.98, 0.98, 1.0];
-  rightEye.matrix.set(penguinBaseMatrix);
-  rightEye.matrix.translate(-0.15, 0.6, 0.25);
-  rightEye.matrix.rotate(90, 1, 0, 0);
-  rightEye.matrix.scale(1.5 * g_pokeEyeScale, 0.8 * g_pokeEyeScale, 1.2 * g_pokeEyeScale);
-  rightEye.render();
+    let rightPupil = g_reuse.shapes.rightPupil;
+    rightPupil.color = [0.1, 0.1, 0.1, 1.0];
+    rightPupil.matrix.set(penguinBaseMatrix);
+    rightPupil.matrix.translate(-0.15, 0.6, 0.38);
+    rightPupil.matrix.rotate(90, 1, 0, 0);
+    rightPupil.matrix.scale(g_pokeEyeScale, g_pokeEyeScale, g_pokeEyeScale);
+    rightPupil.render();
 
-  let rightPupil = g_reuse.shapes.rightPupil;
-  rightPupil.color = [0.1, 0.1, 0.1, 1.0];
-  rightPupil.matrix.set(penguinBaseMatrix);
-  rightPupil.matrix.translate(-0.15, 0.6, 0.38);
-  rightPupil.matrix.rotate(90, 1, 0, 0);
-  rightPupil.matrix.scale(g_pokeEyeScale, g_pokeEyeScale, g_pokeEyeScale);
-  rightPupil.render();
+    // left eyelid 
+    let leftEyelid = g_reuse.shapes.leftEyelid;
+    leftEyelid.color = [0.1, 0.1, 0.1, 1.0];
+    leftEyelid.matrix.set(penguinBaseMatrix);
+    leftEyelid.matrix.translate(0.15, 0.65, 0.372);
+    leftEyelid.matrix.rotate(270, 1, 0, 0);
+    leftEyelid.matrix.scale(1.2, 0.9, 1.2);
+    leftEyelid.render();
 
-  // Left eyelid 
-  let leftEyelid = g_reuse.shapes.leftEyelid;
-  leftEyelid.color = [0.1, 0.1, 0.1, 1.0];
-  leftEyelid.matrix.set(penguinBaseMatrix);
-  leftEyelid.matrix.translate(0.15, 0.65, 0.372);
-  leftEyelid.matrix.rotate(270, 1, 0, 0);
-  leftEyelid.matrix.scale(1.2, 0.9, 1.2);
-  leftEyelid.render();
+    let rightEyelid = g_reuse.shapes.rightEyelid;
+    rightEyelid.color = [0.1, 0.1, 0.1, 1.0];
+    rightEyelid.matrix.set(penguinBaseMatrix);
+    rightEyelid.matrix.translate(-0.15, 0.65, 0.372);
+    rightEyelid.matrix.rotate(270, 1, 0, 0);
+    rightEyelid.matrix.scale(1.2, 0.9, 1.2);
+    rightEyelid.render();
 
-  let rightEyelid = g_reuse.shapes.rightEyelid;
-  rightEyelid.color = [0.1, 0.1, 0.1, 1.0];
-  rightEyelid.matrix.set(penguinBaseMatrix);
-  rightEyelid.matrix.translate(-0.15, 0.65, 0.372);
-  rightEyelid.matrix.rotate(270, 1, 0, 0);
-  rightEyelid.matrix.scale(1.2, 0.9, 1.2);
-  rightEyelid.render();
+    //mouth/beak with poke animation
+    let currentBeakAngle = g_BeakAnimation ? g_BeakAngle : 0;
+    currentBeakAngle += g_pokeBeakOpen;  
+    
+    let upperBeak = g_reuse.shapes.upperBeak;
+    upperBeak.color = [1.0, 0.8, 0.3, 1.0];
+    upperBeak.matrix.set(penguinBaseMatrix);
+    upperBeak.matrix.translate(-0.0, 0.345, 0.25);
+    upperBeak.matrix.rotate(currentBeakAngle, 1, 0, 0);
+    upperBeak.matrix.scale(1, 1, 2.5);
+    upperBeak.matrix.rotate(90, 1, 0, 0);
+    upperBeak.render();
 
-  //mouth/beak with poke animation
-  let currentBeakAngle = g_BeakAnimation ? g_BeakAngle : 0;
-  currentBeakAngle += g_pokeBeakOpen;  // Add poke beak opening
-  
-  let upperBeak = g_reuse.shapes.upperBeak;
-  upperBeak.color = [1.0, 0.8, 0.3, 1.0];
-  upperBeak.matrix.set(penguinBaseMatrix);
-  upperBeak.matrix.translate(-0.0, 0.345, 0.25);
-  upperBeak.matrix.rotate(currentBeakAngle, 1, 0, 0);
-  upperBeak.matrix.scale(1, 1, 2.5);
-  upperBeak.matrix.rotate(90, 1, 0, 0);
-  upperBeak.render();
+    //lower beak
+    let lowerBeak = g_reuse.shapes.lowerBeak;
+    lowerBeak.color = [1.0, 0.8, 0.3, 1.0];
+    lowerBeak.matrix.set(penguinBaseMatrix);
+    lowerBeak.matrix.translate(-0.0, 0.35, 0.25);
+    lowerBeak.matrix.rotate(-currentBeakAngle, 1, 0, 0);
+    lowerBeak.matrix.scale(1, 1, 2.5);
+    lowerBeak.matrix.rotate(90, 1, 0, 0);
+    lowerBeak.render();
 
-  //lower beak
-  let lowerBeak = g_reuse.shapes.lowerBeak;
-  lowerBeak.color = [1.0, 0.8, 0.3, 1.0];
-  lowerBeak.matrix.set(penguinBaseMatrix);
-  lowerBeak.matrix.translate(-0.0, 0.35, 0.25);
-  lowerBeak.matrix.rotate(-currentBeakAngle, 1, 0, 0);
-  lowerBeak.matrix.scale(1, 1, 2.5);
-  lowerBeak.matrix.rotate(90, 1, 0, 0);
-  lowerBeak.render();
+    // Bowtie
+    let bowCenter = g_reuse.shapes.bowCenter;
+    bowCenter.color = [1.0, 0.2, 0.2, 1.0];
+    bowCenter.matrix.set(penguinBaseMatrix);
+    bowCenter.matrix.translate(0.01, 0.06, 0.32);
+    bowCenter.matrix.rotate(90, 1, 0, 0);
+    bowCenter.render();
 
-  // Bowtie
-  let bowCenter = g_reuse.shapes.bowCenter;
-  bowCenter.color = [1.0, 0.2, 0.2, 1.0];
-  bowCenter.matrix.set(penguinBaseMatrix);
-  bowCenter.matrix.translate(0.01, 0.06, 0.32);
-  bowCenter.matrix.rotate(90, 1, 0, 0);
-  bowCenter.render();
+    let bowRight = g_reuse.shapes.bowRight;
+    bowRight.color = [1.0, 0.2, 0.2, 1.0];
+    bowRight.matrix.set(penguinBaseMatrix);
+    bowRight.matrix.translate(-0.01, 0.05, 0.32);
+    bowRight.matrix.rotate(90, 1, 0, 0);
+    bowRight.matrix.rotate(65, 0, 0, 1);
+    bowRight.render();
 
-  let bowRight = g_reuse.shapes.bowRight;
-  bowRight.color = [1.0, 0.2, 0.2, 1.0];
-  bowRight.matrix.set(penguinBaseMatrix);
-  bowRight.matrix.translate(-0.01, 0.05, 0.32);
-  bowRight.matrix.rotate(90, 1, 0, 0);
-  bowRight.matrix.rotate(65, 0, 0, 1);
-  bowRight.render();
+    let bowLeft = g_reuse.shapes.bowLeft;
+    bowLeft.color = [1.0, 0.2, 0.2, 1.0];
+    bowLeft.matrix.set(penguinBaseMatrix);
+    bowLeft.matrix.translate(0.04, 0.05, 0.32);
+    bowLeft.matrix.rotate(90, 1, 0, 0);
+    bowLeft.matrix.rotate(-70, 0, 0, 1);
+    bowLeft.render();
 
-  let bowLeft = g_reuse.shapes.bowLeft;
-  bowLeft.color = [1.0, 0.2, 0.2, 1.0];
-  bowLeft.matrix.set(penguinBaseMatrix);
-  bowLeft.matrix.translate(0.04, 0.05, 0.32);
-  bowLeft.matrix.rotate(90, 1, 0, 0);
-  bowLeft.matrix.rotate(-70, 0, 0, 1);
-  bowLeft.render();
+    // Body
+    let body = g_reuse.shapes.body;
+    body.color = [0.1, 0.1, 0.1, 1.0];
+    body.matrix.set(penguinBaseMatrix);
+    body.matrix.translate(-0.35, -0.6, -0.2);
+    body.matrix.scale(0.7, 0.8, 0.5);
+    body.render();
 
-  // Body
-  let body = g_reuse.shapes.body;
-  body.color = [0.1, 0.1, 0.1, 1.0];
-  body.matrix.set(penguinBaseMatrix);
-  body.matrix.translate(-0.35, -0.6, -0.2);
-  body.matrix.scale(0.7, 0.8, 0.5);
-  body.render();
+    // Belly
+    let belly = g_reuse.shapes.belly;
+    belly.color = [0.95, 0.95, 0.95, 1.0];
+    belly.matrix.set(penguinBaseMatrix);
+    belly.matrix.translate(-0.25, -0.55, -0.05);
+    belly.matrix.scale(0.5, 0.7, 0.4);
+    belly.render();
 
-  // Belly
-  let belly = g_reuse.shapes.belly;
-  belly.color = [0.95, 0.95, 0.95, 1.0];
-  belly.matrix.set(penguinBaseMatrix);
-  belly.matrix.translate(-0.25, -0.55, -0.05);
-  belly.matrix.scale(0.5, 0.7, 0.4);
-  belly.render();
+    let belly2 = g_reuse.shapes.belly2;
+    belly2.color = [1.0, 1.0, 1.0, 1.0];
+    belly2.matrix.set(penguinBaseMatrix);
+    belly2.matrix.translate(-0.25, -0.55, 0.3);
+    belly2.matrix.scale(0.5, 0.55, 0.1);
+    belly2.render();
 
-  let belly2 = g_reuse.shapes.belly2;
-  belly2.color = [1.0, 1.0, 1.0, 1.0];
-  belly2.matrix.set(penguinBaseMatrix);
-  belly2.matrix.translate(-0.25, -0.55, 0.3);
-  belly2.matrix.scale(0.5, 0.55, 0.1);
-  belly2.render();
+    let belly3 = g_reuse.shapes.belly3;
+    belly3.color = [0.98, 0.98, 0.98, 1.0];
+    belly3.matrix.set(penguinBaseMatrix);
+    belly3.matrix.translate(-0.25, -0.55, 0.35);
+    belly3.matrix.scale(0.5, 0.35, 0.1);
+    belly3.render();
 
-  let belly3 = g_reuse.shapes.belly3;
-  belly3.color = [0.98, 0.98, 0.98, 1.0];
-  belly3.matrix.set(penguinBaseMatrix);
-  belly3.matrix.translate(-0.25, -0.55, 0.35);
-  belly3.matrix.scale(0.5, 0.35, 0.1);
-  belly3.render();
+    // Wings
+    // left arm
+    let leftArm = g_reuse.shapes.leftArm;
+    leftArm.color = [0.1, 0.1, 0.1, 1.0];
+    leftArm.matrix.set(penguinBaseMatrix);
+    leftArm.matrix.translate(0.3, 0.06, 0.3);
+    let swingBias = -50; 
+    let leftArmAngle = swingBias + g_armSwingAngle + g_pokeArmFlap + g_fallArmFlail;
+    leftArm.matrix.rotate(leftArmAngle, 0, 0, 1);
+    leftArm.matrix.rotate(-90, 1, 0, 0);  
+    leftArm.matrix.scale(0.7, 0.5, 0.09); 
+    leftArm.render();
 
-  // WINGS with poke flapping
-  // left arm
-  let leftArm = g_reuse.shapes.leftArm;
-  leftArm.color = [0.1, 0.1, 0.1, 1.0];
-  leftArm.matrix.set(penguinBaseMatrix);
-  leftArm.matrix.translate(0.3, 0.06, 0.3);
-  let swingBias = -50; 
-  let leftArmAngle = swingBias + g_armSwingAngle + g_pokeArmFlap;  // Add poke flap
-  leftArm.matrix.rotate(leftArmAngle, 0, 0, 1);
-  leftArm.matrix.rotate(-90, 1, 0, 0);  
-  leftArm.matrix.scale(0.7, 0.5, 0.09); 
-  leftArm.render();
+    // right wing 
+    let rightArm = g_reuse.shapes.rightArm;
+    rightArm.color = [0.1, 0.1, 0.1, 1.0];
+    rightArm.matrix.set(penguinBaseMatrix);
+    rightArm.matrix.translate(-0.36, 0.1, 0.3); 
+    rightArm.matrix.rotate(-leftArmAngle + 180, 0, 0, 1);
+    rightArm.matrix.rotate(-90, 1, 0, 0);
+    rightArm.matrix.scale(0.7, 0.5, 0.09);
+    rightArm.render();
 
-  // right wing 
-  let rightArm = g_reuse.shapes.rightArm;
-  rightArm.color = [0.1, 0.1, 0.1, 1.0];
-  rightArm.matrix.set(penguinBaseMatrix);
-  rightArm.matrix.translate(-0.36, 0.1, 0.3); 
-  rightArm.matrix.rotate(-leftArmAngle + 180, 0, 0, 1);
-  rightArm.matrix.rotate(-90, 1, 0, 0);
-  rightArm.matrix.scale(0.7, 0.5, 0.09);
-  rightArm.render();
+    // legs
+    let leftThigh = g_reuse.shapes.leftThigh;
+    leftThigh.color = [0.5, 0.5, 0.5, 1.0];
+    leftThigh.matrix.set(penguinBaseMatrix);
+    leftThigh.matrix.translate(0, -0.65, -0.2);
+    leftThigh.matrix.rotate(g_legWalkAngle, 1, 0, 0);  
+    leftThigh.matrix.translate(0, -0.1, 0);
+    let leftThighMatrix = g_reuse.matrices.leftThighMatrix;
+    leftThighMatrix.set(leftThigh.matrix);
+    leftThigh.matrix.scale(0.35, 0.15, 0.5);
+    leftThigh.render();
 
-  // Legs
-  let leftThigh = g_reuse.shapes.leftThigh;
-  leftThigh.color = [0.5, 0.5, 0.5, 1.0];
-  leftThigh.matrix.set(penguinBaseMatrix);
-  leftThigh.matrix.translate(0, -0.65, -0.2);
-  leftThigh.matrix.rotate(g_legWalkAngle, 1, 0, 0);
-  leftThigh.matrix.translate(0, -0.1, 0);
-  let leftThighMatrix = g_reuse.matrices.leftThighMatrix;
-  leftThighMatrix.set(leftThigh.matrix);
-  leftThigh.matrix.scale(0.35, 0.15, 0.5);
-  leftThigh.render();
+    // left lower leg 
+    let leftLeg = g_reuse.shapes.leftLeg;
+    leftLeg.color = [0.6, 0.6, 0.6, 1.0];
+    leftLeg.matrix.set(leftThighMatrix);
+    leftLeg.matrix.translate(0, -0.05, 0);
+    leftLeg.matrix.rotate(g_lowerLegAngle, 1, 0, 0);
+    leftLeg.matrix.translate(0, -0.1, 0);
+    let leftLegMatrix = g_reuse.matrices.leftLegMatrix;
+    leftLegMatrix.set(leftLeg.matrix);
+    leftLeg.matrix.scale(0.35, 0.15, 0.5);
+    leftLeg.render();
 
-  // left lower leg 
-  let leftLeg = g_reuse.shapes.leftLeg;
-  leftLeg.color = [0.6, 0.6, 0.6, 1.0];
-  leftLeg.matrix.set(leftThighMatrix);
-  leftLeg.matrix.translate(0, -0.05, 0);
-  leftLeg.matrix.rotate(g_lowerLegAngle, 1, 0, 0);
-  leftLeg.matrix.translate(0, -0.1, 0);
-  let leftLegMatrix = g_reuse.matrices.leftLegMatrix;
-  leftLegMatrix.set(leftLeg.matrix);
-  leftLeg.matrix.scale(0.35, 0.15, 0.5);
-  leftLeg.render();
+    // left foot
+    let leftFoot = g_reuse.shapes.leftFoot;
+    leftFoot.color = [1.0, 0.65, 0.0, 1.0];
+    leftFoot.matrix.set(leftLegMatrix);
+    leftFoot.matrix.translate(0, -0.08, 0);
+    leftFoot.matrix.scale(0.35, 0.08, 0.7);
+    leftFoot.render();
 
-  // left foot
-  let leftFoot = g_reuse.shapes.leftFoot;
-  leftFoot.color = [1.0, 0.65, 0.0, 1.0];
-  leftFoot.matrix.set(leftLegMatrix);
-  leftFoot.matrix.translate(0, -0.08, 0);
-  leftFoot.matrix.scale(0.35, 0.08, 0.7);
-  leftFoot.render();
+    // right thigh
+    let rightThigh = g_reuse.shapes.rightThigh;
+    rightThigh.color = [0.5, 0.5, 0.5, 1.0];
+    rightThigh.matrix.set(penguinBaseMatrix);
+    rightThigh.matrix.translate(-0.35, -0.65, -0.2);
+    rightThigh.matrix.rotate(-g_legWalkAngle, 1, 0, 0);  
+    rightThigh.matrix.translate(0, -0.1, 0);
+    let rightThighMatrix = g_reuse.matrices.rightThighMatrix;
+    rightThighMatrix.set(rightThigh.matrix);
+    rightThigh.matrix.scale(0.35, 0.15, 0.5);
+    rightThigh.render();
 
-  // right thigh
-  let rightThigh = g_reuse.shapes.rightThigh;
-  rightThigh.color = [0.5, 0.5, 0.5, 1.0];
-  rightThigh.matrix.set(penguinBaseMatrix);
-  rightThigh.matrix.translate(-0.35, -0.65, -0.2);
-  rightThigh.matrix.rotate(-g_legWalkAngle, 1, 0, 0);
-  rightThigh.matrix.translate(0, -0.1, 0);
-  let rightThighMatrix = g_reuse.matrices.rightThighMatrix;
-  rightThighMatrix.set(rightThigh.matrix);
-  rightThigh.matrix.scale(0.35, 0.15, 0.5);
-  rightThigh.render();
+    // lower right leg
+    let rightLeg = g_reuse.shapes.rightLeg;
+    rightLeg.color = [0.6, 0.6, 0.6, 1.0];
+    rightLeg.matrix.set(rightThighMatrix);
+    rightLeg.matrix.translate(0, -0.05, 0);
+    rightLeg.matrix.rotate(-g_lowerLegAngle, 1, 0, 0);
+    rightLeg.matrix.translate(0, -0.1, 0);
+    let rightLegMatrix = g_reuse.matrices.rightLegMatrix;
+    rightLegMatrix.set(rightLeg.matrix);
+    rightLeg.matrix.scale(0.35, 0.15, 0.5);
+    rightLeg.render();
 
-  // lower right leg
-  let rightLeg = g_reuse.shapes.rightLeg;
-  rightLeg.color = [0.6, 0.6, 0.6, 1.0];
-  rightLeg.matrix.set(rightThighMatrix);
-  rightLeg.matrix.translate(0, -0.05, 0);
-  rightLeg.matrix.rotate(-g_lowerLegAngle, 1, 0, 0);
-  rightLeg.matrix.translate(0, -0.1, 0);
-  let rightLegMatrix = g_reuse.matrices.rightLegMatrix;
-  rightLegMatrix.set(rightLeg.matrix);
-  rightLeg.matrix.scale(0.35, 0.15, 0.5);
-  rightLeg.render();
-
-  // right foot
-  let rightFoot = g_reuse.shapes.rightFoot;
-  rightFoot.color = [1.0, 0.65, 0.0, 1.0];
-  rightFoot.matrix.set(rightLegMatrix);
-  rightFoot.matrix.translate(0, -0.08, 0);
-  rightFoot.matrix.scale(0.35, 0.08, 0.7);
-  rightFoot.render();
+    // right foot
+    let rightFoot = g_reuse.shapes.rightFoot;
+    rightFoot.color = [1.0, 0.65, 0.0, 1.0];
+    rightFoot.matrix.set(rightLegMatrix);
+    rightFoot.matrix.translate(0, -0.08, 0);
+    rightFoot.matrix.scale(0.35, 0.08, 0.7);
+    rightFoot.render();
+  }
 
   // Update performance display
   let duration = performance.now() - startTime;

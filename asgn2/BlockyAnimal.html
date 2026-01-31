@@ -13,56 +13,35 @@
     <p><strong>Mouse Control:</strong> Click and drag on the canvas to rotate the penguin</p>
     <br>
     <p id="numdot">XXX</p>
-    
-     <button type="button" id ="clearButton">Clear Canvas</button>
-     <!-- <br> <br>
-    <button type = "button" id ="green">Green</button>
-    <button type = "button" id ="red">Red</button>
-    <button type = "button" id ="blue">Blue</button> -->
+     <button type="button" id="resetButton">Reset Penguin</button>
 
     <br>
     <br>
-    <!-- hide input button -->
+
     <input type="color" id="colorPicker" value="#ffffff" style="display: none;">
 
-    <!-- <button type="button" id="colorPickerButton">Pick your Custom Color</button>
-    <button type="button" id="rainbowButton"> Rainbow Mode OFF</button>
-    <button type="button" id="exportButton"> Save as PNG</button> -->
-
-
-<!-- 
-    <button type="button" id ="pointButton">Point</button>
-    <button type="button" id ="triButton">Triangle</button>
-    <button type="button" id ="circleButton">Circle</button>
-    <button type="button" id="eraserButton">Eraser</button> -->
-    
-    <!-- <br><br>
-    <button type="button" id="undoButton">Undo</button>
-    <button type="button" id="redoButton">Redo</button>
-    <br> -->
-
-      <!-- Red <input type="range" min="0" max = "100" value="100" class="slider" id="redSlide">
-      <br>
-      Green <input type="range" min="0" max = "100" value="100" class="slider" id="greenSlide"> -->
     <br>
     beak <input type="range" min="0" max = "50" value="0" class="slider" id="BeakSlide">
-    Animation:
+    Beak Animation:
     <button type = "button" id = animationBeakOnButton>ON</button>
     <button type = "button" id = animationBeakOffButton>OFF</button>
     <br>
-    Second level joint (Lower Leg) <input type="range" min="-5" max = "5" value="0" class="slider" id="jointSlide">
-    Animation:
+    <br>
+    Arm Swing <input type="range" min="-30" max="30" value="0" class="slider" id="armSlide">
+    Arm Swing Animation:
+    <button type="button" id="animationArmOnButton">ON</button>
+    <button type="button" id="animationArmOffButton">OFF</button>
+    <br>
+    Second level joint (Lower Leg) <input type="range" min="-5" max = "5" value="0" class="slider" id="jointSlide"><br><br>
+    Walk Animation: 
     <button type = "button" id = animationWalkOnButton>ON</button>
     <button type = "button" id = animationWalkOffButton>OFF</button>
     <br><br>
-     <button type="button" id="fallOverButton">Make Penguin Fall Over!</button>
+     <button type="button" id="fallOverButton">Activate Penguin Fall Animation</button>
      <br><br>
     Camera Angle <input type="range" min="0" max = "720" value="5" class="slider" id="angleSlide">
-    <!-- Circle Segment Count <input type="range" min="10" max = "100" value="10" class="slider" id="circleSlide"> -->
     <br>
-    <!-- Rainbow Speed <input type="range" min="1" max="50" value="10" class="slider" id="rainbowSpeedSlide">
-    <br>
-    Eraser Size <input type="range" min="1" max="50" value="10" class="slider" id="eraserSizeSlide"> -->
+
     
     <script src="lib/cuon-matrix.js"></script>
     <script src="lib/cuon-utils.js"></script>
