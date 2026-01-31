@@ -28,6 +28,27 @@ let u_GlobalRotateMatrix;
 let g_selectedSegments = 10;
 let g_yellowAnimation = false;
 let g_BeakAnimation = false;
+//mouse
+let g_mouseDown = false;
+let g_lastMouseX = null;
+let g_lastMouseY = null;
+let g_globalAngleX = 0;  
+let g_globalAngleY = 0; 
+
+// poke animation variables
+let g_pokeAnimation = false;
+let g_pokeStartTime = 0;
+let g_pokeDuration = 1.5; 
+let g_pokeEyeScale = 1.0;
+let g_pokeBodyJump = 0;
+let g_pokeArmFlap = 0;
+let g_pokeBeakOpen = 0;
+
+// Performance tracking
+let g_frameCount = 0;
+let g_lastFpsTime = 0;
+let g_fps = 0;
+let g_lastRenderTime = 0;
 
 function setupWebGL() {
   // Retrieve <canvas> element
@@ -108,6 +129,141 @@ let g_walkAnimation = false;
 let g_startTime = performance.now() / 1000.0;
 let g_seconds = performance.now() / 1000.0 - g_startTime;
 
+// Performance optimization: Reusable objects
+let g_reuse = {
+  matrices: {
+    penguinBase: new Matrix4(),
+    penguinBaseMatrix: new Matrix4(),
+    globalRotMatr: new Matrix4(),
+    leftThighMatrix: new Matrix4(),
+    leftLegMatrix: new Matrix4(),
+    rightThighMatrix: new Matrix4(),
+    rightLegMatrix: new Matrix4(),
+    tempMatrix1: new Matrix4(),
+    tempMatrix2: new Matrix4()
+  },
+  shapes: {
+    head: null,
+    leftEye: null,
+    leftPupil: null,
+    rightEye: null,
+    rightPupil: null,
+    leftEyelid: null,
+    rightEyelid: null,
+    upperBeak: null,
+    lowerBeak: null,
+    bowCenter: null,
+    bowRight: null,
+    bowLeft: null,
+    body: null,
+    belly: null,
+    belly2: null,
+    belly3: null,
+    leftArm: null,
+    rightArm: null,
+    leftThigh: null,
+    leftLeg: null,
+    leftFoot: null,
+    rightThigh: null,
+    rightLeg: null,
+    rightFoot: null
+  }
+};
+
+function initReusableShapes() {
+  // Initialize all shapes once
+  g_reuse.shapes.head = new Cube();
+  g_reuse.shapes.leftEye = new Cylinder();
+  g_reuse.shapes.leftPupil = new Cylinder();
+  g_reuse.shapes.rightEye = new Cylinder();
+  g_reuse.shapes.rightPupil = new Cylinder();
+  g_reuse.shapes.leftEyelid = new Cylinder();
+  g_reuse.shapes.rightEyelid = new Cylinder();
+  g_reuse.shapes.upperBeak = new Cylinder();
+  g_reuse.shapes.lowerBeak = new Cylinder();
+  g_reuse.shapes.bowCenter = new Cylinder();
+  g_reuse.shapes.bowRight = new Cylinder();
+  g_reuse.shapes.bowLeft = new Cylinder();
+  g_reuse.shapes.body = new Cube();
+  g_reuse.shapes.belly = new Cube();
+  g_reuse.shapes.belly2 = new Cube();
+  g_reuse.shapes.belly3 = new Cube();
+  g_reuse.shapes.leftArm = new Cube();
+  g_reuse.shapes.rightArm = new Cube();
+  g_reuse.shapes.leftThigh = new Cube();
+  g_reuse.shapes.leftLeg = new Cube();
+  g_reuse.shapes.leftFoot = new Cube();
+  g_reuse.shapes.rightThigh = new Cube();
+  g_reuse.shapes.rightLeg = new Cube();
+  g_reuse.shapes.rightFoot = new Cube();
+  
+  // Set constant properties once
+  g_reuse.shapes.leftEye.segments = 16;
+  g_reuse.shapes.leftEye.radiusTop = 0.1;
+  g_reuse.shapes.leftEye.radiusBottom = 0.1;
+  g_reuse.shapes.leftEye.height = 0.15;
+  
+  g_reuse.shapes.leftPupil.segments = 12;
+  g_reuse.shapes.leftPupil.radiusTop = 0.05;
+  g_reuse.shapes.leftPupil.radiusBottom = 0.05;
+  g_reuse.shapes.leftPupil.height = 0.05;
+  
+  g_reuse.shapes.rightEye.segments = 16;
+  g_reuse.shapes.rightEye.radiusTop = 0.1;
+  g_reuse.shapes.rightEye.radiusBottom = 0.1;
+  g_reuse.shapes.rightEye.height = 0.15;
+  
+  g_reuse.shapes.rightPupil.segments = 12;
+  g_reuse.shapes.rightPupil.radiusTop = 0.05;
+  g_reuse.shapes.rightPupil.radiusBottom = 0.05;
+  g_reuse.shapes.rightPupil.height = 0.05;
+  
+  g_reuse.shapes.leftEyelid.segments = 32;
+  g_reuse.shapes.leftEyelid.radiusTop = 0.13;
+  g_reuse.shapes.leftEyelid.radiusBottom = 0.13;
+  g_reuse.shapes.leftEyelid.height = 0.08;
+  g_reuse.shapes.leftEyelid.startAngle = 0;
+  g_reuse.shapes.leftEyelid.endAngle = 180;
+  g_reuse.shapes.leftEyelid.drawCaps = true;
+  
+  g_reuse.shapes.rightEyelid.segments = 32;
+  g_reuse.shapes.rightEyelid.radiusTop = 0.13;
+  g_reuse.shapes.rightEyelid.radiusBottom = 0.13;
+  g_reuse.shapes.rightEyelid.height = 0.08;
+  g_reuse.shapes.rightEyelid.startAngle = 0;
+  g_reuse.shapes.rightEyelid.endAngle = 180;
+  g_reuse.shapes.rightEyelid.drawCaps = true;
+  
+  g_reuse.shapes.upperBeak.segments = 12;
+  g_reuse.shapes.upperBeak.radiusTop = 0.01;
+  g_reuse.shapes.upperBeak.radiusBottom = 0.15;
+  g_reuse.shapes.upperBeak.height = 0.15;
+  g_reuse.shapes.upperBeak.isHalf = true;
+  g_reuse.shapes.upperBeak.halfDirection = 'top';
+  
+  g_reuse.shapes.lowerBeak.segments = 12;
+  g_reuse.shapes.lowerBeak.radiusTop = 0.01;
+  g_reuse.shapes.lowerBeak.radiusBottom = 0.15;
+  g_reuse.shapes.lowerBeak.height = 0.15;
+  g_reuse.shapes.lowerBeak.isHalf = true;
+  g_reuse.shapes.lowerBeak.halfDirection = 'bottom';
+  
+  g_reuse.shapes.bowCenter.segments = 12;
+  g_reuse.shapes.bowCenter.radiusTop = 0.05;
+  g_reuse.shapes.bowCenter.radiusBottom = 0.05;
+  g_reuse.shapes.bowCenter.height = 0.15;
+  
+  g_reuse.shapes.bowRight.segments = 12;
+  g_reuse.shapes.bowRight.radiusTop = 0.08;
+  g_reuse.shapes.bowRight.radiusBottom = 0.02;
+  g_reuse.shapes.bowRight.height = 0.25;
+  
+  g_reuse.shapes.bowLeft.segments = 12;
+  g_reuse.shapes.bowLeft.radiusTop = 0.08;
+  g_reuse.shapes.bowLeft.radiusBottom = 0.02;
+  g_reuse.shapes.bowLeft.height = 0.25;
+}
+
 function addActionsForHTMLUI() {
   //Button Events (Shape Type)
   document.getElementById('animationBeakOffButton').onclick = function() {
@@ -116,7 +272,6 @@ function addActionsForHTMLUI() {
 
   document.getElementById('animationBeakOnButton').onclick = function() {
     g_BeakAnimation = true;
-
   };
 
   document.getElementById('animationWalkOnButton').onclick = function() {
@@ -139,70 +294,77 @@ function addActionsForHTMLUI() {
     renderAllShapes();
   });
 
-  //  document.getElementById('magentaSlide').addEventListener('input', function() {
-  //   g_magentaAngle = this.value;
-  //   // updateColorPickerButtonFromRGB();
-  //   renderAllShapes();
-  // });
   document.getElementById('angleSlide').addEventListener('input',
   function() {
-    g_globalAngle = (this.value * 0.5);
+    g_globalAngleY = (this.value * 0.5);
     renderAllShapes();
   });
+}
 
+function updatePerformanceDisplay(duration) {
+  g_frameCount++;
+  let currentTime = performance.now();
+  
+  // Update FPS every second
+  if (currentTime - g_lastFpsTime > 1000) {
+    g_fps = Math.round((g_frameCount * 1000) / (currentTime - g_lastFpsTime));
+    g_frameCount = 0;
+    g_lastFpsTime = currentTime;
+  }
+  
+  // Update display
+  let fpsText = `FPS: ${g_fps} | Render: ${Math.round(duration)}ms`;
+  if (g_pokeAnimation) {
+    fpsText += " |  Poked!";
+  }
+  sendTextToHTML(fpsText, "numdot");
 }
 
 function initSliders() {
-  // document.getElementById('redSlide').value = g_selectedColor[0] * 100;
-  // document.getElementById('greenSlide').value = g_selectedColor[1] * 100;
-  // document.getElementById('blueSlide').value = g_selectedColor[2] * 100;
-  // updateColorPickerButtonFromRGB();
+  // Initialize slider to match current rotation
+  document.getElementById('angleSlide').value = g_globalAngleY * 2;
 }
 
 function main() {
-
   // Set up canvas and gl variables
   setupWebGL();
   // Set up GLSL shader programs and connect GLSL variables
   connectVariablesToGLSL();
 
+  // Initialize reusable shapes
+  initReusableShapes();
+  
   addActionsForHTMLUI();
-  // initSliders();
-  // updateColorPickerButtonFromRGB();
-  // Register function (event handler) to be called on a mouse press
-  canvas.onmousedown = click;
-  // canvas.onmousemove = click;
-  canvas.onmousemove = function(ev) {
-    if (ev.buttons == 1) {
-      click(ev)
-    }
-  };
+  initSliders();
+  
+  // Initialize performance tracking
+  g_lastFpsTime = performance.now();
+  
+  // Register mouse event handlers
+  canvas.onmousedown = function(ev) { mouseDown(ev); };
+  canvas.onmouseup = function(ev) { mouseUp(ev); };
+  canvas.onmousemove = function(ev) { mouseMove(ev); };
 
   // Specify the color for clearing <canvas>
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
   // Clear <canvas>
   gl.clear(gl.COLOR_BUFFER_BIT);
-  //renderAllShapes(); 
+  
   requestAnimationFrame(tick);
 }
 
 //called by browser repeatedly whenever its time
 function tick() {
   g_seconds = performance.now() / 1000.0 - g_startTime;
-  //Print some debug information so know we are running  
+  
   updateAnimationAngles();
-
-  //Draw everything
   renderAllShapes();
-
-  //Tell the browser to update again when it has time
+  
   requestAnimationFrame(tick);
-
 }
 
 function updateAnimationAngles() {
-
   if (g_BeakAnimation) {
     g_BeakAngle = (30 * Math.sin(3 * g_seconds));
   }
@@ -210,18 +372,48 @@ function updateAnimationAngles() {
   if (g_walkAnimation) {
     g_legWalkAngle = (1 * Math.sin(2 * g_seconds));
     g_bodyWaddle = (3 * Math.sin(2 * g_seconds));
-    g_armSwingAngle = (8 * Math.sin(2 * g_seconds));
+    g_armSwingAngle = (25 * Math.sin(1 * g_seconds));
+  }
+  
+  // Update poke animation
+  updatePokeAnimation();
+}
+
+function updatePokeAnimation() {
+  if (g_pokeAnimation) {
+    let elapsed = g_seconds - g_pokeStartTime;
+    let progress = elapsed / g_pokeDuration;
+    
+    if (progress >= 1.0) {
+      // Animation finished
+      g_pokeAnimation = false;
+      g_pokeEyeScale = 1.0;
+      g_pokeBodyJump = 0;
+      g_pokeArmFlap = 0;
+      g_pokeBeakOpen = 0;
+    } else {
+      // Surprised reaction: eyes get big, body jumps, arms flap, beak opens
+      // Use sin for smooth animation
+      let wave = Math.sin(progress * Math.PI);
+      
+      // Eyes expand then return to normal
+      g_pokeEyeScale = 1.0 + (0.8 * wave);
+      
+      // Body jumps up
+      g_pokeBodyJump = 0.4 * wave;
+      
+      // Arms flap outward rapidly
+      g_pokeArmFlap = 40 * Math.sin(progress * Math.PI * 4);
+      
+      // Beak opens wide in surprise
+      g_pokeBeakOpen = 50 * wave;
+    }
   }
 }
 
 var g_shapesList = [];
 
-// var g_points = [];  // The array for the position of a mouse press
-// var g_colors = [];  // The array to store the color of a point
-// var g_sizes = []; // THe array to store the size of the a point
 function click(ev) {
-
-  // extract the event click and return it in the WebGL coordinates
   let[x, y] = convertCoordinatesEventToGL(ev);
 
   let point;
@@ -233,7 +425,6 @@ function click(ev) {
     point = new Circle();
   }
   point.position = [x, y];
-
   point.size = g_selectedSize;
 
   if (g_selectedType == CIRCLE) {
@@ -241,304 +432,260 @@ function click(ev) {
   }
 
   g_shapesList.push(point);
-
-  // Draw every shape that is supposed to be in the canvas
   renderAllShapes();
-
 }
 
 function renderAllShapes() {
-
-  // Check the time at the start of this function
-  var startTime = performance.now();
-  var globalRotMatr = new Matrix4().rotate(g_globalAngle + 180, 0, 1, 0);
+  let startTime = performance.now();
+  
+  // Use reusable matrix
+  let globalRotMatr = g_reuse.matrices.globalRotMatr;
+  globalRotMatr.setIdentity();
+  globalRotMatr.rotate(g_globalAngleX, 1, 0, 0);
+  globalRotMatr.rotate(g_globalAngleY + 180, 0, 1, 0);
+  
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMatr.elements);
 
   // Clear canvas with blue background 
   gl.clearColor(0.7, 0.85, 1.0, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  // penguin
-  // base matrix
-  var penguinBase = new Matrix4();
-  penguinBase.translate(0, 0, 0);
+  // penguin base matrix using reusable matrix
+  let penguinBase = g_reuse.matrices.penguinBase;
+  penguinBase.setIdentity();
+  penguinBase.translate(0, g_pokeBodyJump, 0);  // Add jump from poke animation
   penguinBase.scale(0.8, 0.8, 0.8);
   penguinBase.rotate(g_bodyWaddle, 0, 0, 1);
-  var penguinBaseMatrix = new Matrix4(penguinBase);
+  
+  let penguinBaseMatrix = g_reuse.matrices.penguinBaseMatrix;
+  penguinBaseMatrix.set(penguinBase);
 
   //head 
-  var head = new Cube();
+  let head = g_reuse.shapes.head;
   head.color = [0.1, 0.1, 0.1, 1.0];
-  head.matrix = new Matrix4(penguinBaseMatrix);
-  head.matrix.translate( - 0.35, 0.2, -0.2);
+  head.matrix.set(penguinBaseMatrix);
+  head.matrix.translate(-0.35, 0.2, -0.2);
   head.matrix.scale(0.7, 0.7, 0.5);
   head.render();
 
-  // left eye 
-  var leftEye = new Cylinder();
+  // left eye with poke scaling
+  let leftEye = g_reuse.shapes.leftEye;
   leftEye.color = [0.98, 0.98, 0.98, 1.0];
-  leftEye.segments = 16;
-  leftEye.radiusTop = 0.1;
-  leftEye.radiusBottom = 0.1;
-  leftEye.height = 0.15;
-  leftEye.matrix = new Matrix4(penguinBaseMatrix);
+  leftEye.matrix.set(penguinBaseMatrix);
   leftEye.matrix.translate(0.15, 0.6, 0.25);
   leftEye.matrix.rotate(90, 1, 0, 0);
-  leftEye.matrix.scale(1.5, 0.8, 1.2);
+  leftEye.matrix.scale(1.5 * g_pokeEyeScale, 0.8 * g_pokeEyeScale, 1.2 * g_pokeEyeScale);
   leftEye.render();
 
-  var leftPupil = new Cylinder();
+  let leftPupil = g_reuse.shapes.leftPupil;
   leftPupil.color = [0.1, 0.1, 0.1, 1.0];
-  leftPupil.segments = 12;
-  leftPupil.radiusTop = 0.05;
-  leftPupil.radiusBottom = 0.05;
-  leftPupil.height = 0.05;
-  leftPupil.matrix = new Matrix4(penguinBaseMatrix);
+  leftPupil.matrix.set(penguinBaseMatrix);
   leftPupil.matrix.translate(0.15, 0.6, 0.38);
   leftPupil.matrix.rotate(90, 1, 0, 0);
+  leftPupil.matrix.scale(g_pokeEyeScale, g_pokeEyeScale, g_pokeEyeScale);
   leftPupil.render();
 
-  // tight eye
-  var rightEye = new Cylinder();
+  // right eye with poke scaling
+  let rightEye = g_reuse.shapes.rightEye;
   rightEye.color = [0.98, 0.98, 0.98, 1.0];
-  rightEye.segments = 16;
-  rightEye.radiusTop = 0.1;
-  rightEye.radiusBottom = 0.1;
-  rightEye.height = 0.15;
-  rightEye.matrix = new Matrix4(penguinBaseMatrix);
-  rightEye.matrix.translate( - 0.15, 0.6, 0.25);
+  rightEye.matrix.set(penguinBaseMatrix);
+  rightEye.matrix.translate(-0.15, 0.6, 0.25);
   rightEye.matrix.rotate(90, 1, 0, 0);
-  rightEye.matrix.scale(1.5, 0.8, 1.2);
+  rightEye.matrix.scale(1.5 * g_pokeEyeScale, 0.8 * g_pokeEyeScale, 1.2 * g_pokeEyeScale);
   rightEye.render();
 
-  var rightPupil = new Cylinder();
+  let rightPupil = g_reuse.shapes.rightPupil;
   rightPupil.color = [0.1, 0.1, 0.1, 1.0];
-  rightPupil.segments = 12;
-  rightPupil.radiusTop = 0.05;
-  rightPupil.radiusBottom = 0.05;
-  rightPupil.height = 0.05;
-  rightPupil.matrix = new Matrix4(penguinBaseMatrix);
-  rightPupil.matrix.translate( - 0.15, 0.6, 0.38);
+  rightPupil.matrix.set(penguinBaseMatrix);
+  rightPupil.matrix.translate(-0.15, 0.6, 0.38);
   rightPupil.matrix.rotate(90, 1, 0, 0);
+  rightPupil.matrix.scale(g_pokeEyeScale, g_pokeEyeScale, g_pokeEyeScale);
   rightPupil.render();
 
   // Left eyelid 
-  var leftEyelid = new Cylinder();
+  let leftEyelid = g_reuse.shapes.leftEyelid;
   leftEyelid.color = [0.1, 0.1, 0.1, 1.0];
-  leftEyelid.segments = 32;
-  leftEyelid.radiusTop = 0.13;
-  leftEyelid.radiusBottom = 0.13;
-  leftEyelid.height = 0.08;
-  leftEyelid.startAngle = 0;
-  leftEyelid.endAngle = 180;
-  leftEyelid.drawCaps = true;
-  leftEyelid.matrix = new Matrix4(penguinBaseMatrix);
+  leftEyelid.matrix.set(penguinBaseMatrix);
   leftEyelid.matrix.translate(0.15, 0.65, 0.372);
   leftEyelid.matrix.rotate(270, 1, 0, 0);
   leftEyelid.matrix.scale(1.2, 0.9, 1.2);
   leftEyelid.render();
 
-  var rightEyelid = new Cylinder();
+  let rightEyelid = g_reuse.shapes.rightEyelid;
   rightEyelid.color = [0.1, 0.1, 0.1, 1.0];
-  rightEyelid.segments = 32;
-  rightEyelid.radiusTop = 0.13;
-  rightEyelid.radiusBottom = 0.13;
-  rightEyelid.height = 0.08;
-  rightEyelid.startAngle = 0;
-  rightEyelid.endAngle = 180;
-  rightEyelid.drawCaps = true;
-  rightEyelid.matrix = new Matrix4(penguinBaseMatrix);
-  rightEyelid.matrix.translate( - 0.15, 0.65, 0.372);
+  rightEyelid.matrix.set(penguinBaseMatrix);
+  rightEyelid.matrix.translate(-0.15, 0.65, 0.372);
   rightEyelid.matrix.rotate(270, 1, 0, 0);
   rightEyelid.matrix.scale(1.2, 0.9, 1.2);
   rightEyelid.render();
 
-  //mouth/beak
-  var upperBeak = new Cylinder();
+  //mouth/beak with poke animation
+  let currentBeakAngle = g_BeakAnimation ? g_BeakAngle : 0;
+  currentBeakAngle += g_pokeBeakOpen;  // Add poke beak opening
+  
+  let upperBeak = g_reuse.shapes.upperBeak;
   upperBeak.color = [1.0, 0.8, 0.3, 1.0];
-  upperBeak.segments = 12;
-  upperBeak.radiusTop = 0.01;
-  upperBeak.radiusBottom = 0.15;
-  upperBeak.height = 0.15;
-  upperBeak.isHalf = true;
-  upperBeak.halfDirection = 'top';
-  upperBeak.matrix = new Matrix4(penguinBaseMatrix);
-  upperBeak.matrix.translate( - 0.0, 0.345, 0.25);
-  upperBeak.matrix.rotate(g_BeakAngle, 1, 0, 0);
+  upperBeak.matrix.set(penguinBaseMatrix);
+  upperBeak.matrix.translate(-0.0, 0.345, 0.25);
+  upperBeak.matrix.rotate(currentBeakAngle, 1, 0, 0);
   upperBeak.matrix.scale(1, 1, 2.5);
   upperBeak.matrix.rotate(90, 1, 0, 0);
   upperBeak.render();
 
   //lower beak
-  var lowerBeak = new Cylinder();
+  let lowerBeak = g_reuse.shapes.lowerBeak;
   lowerBeak.color = [1.0, 0.8, 0.3, 1.0];
-  lowerBeak.segments = 12;
-  lowerBeak.radiusTop = 0.01;
-  lowerBeak.radiusBottom = 0.15;
-  lowerBeak.height = 0.15;
-  lowerBeak.isHalf = true;
-  lowerBeak.halfDirection = 'bottom';
-  lowerBeak.matrix = new Matrix4(penguinBaseMatrix);
-  lowerBeak.matrix.translate( - 0.0, 0.35, 0.25);
-  lowerBeak.matrix.rotate( - g_BeakAngle, 1, 0, 0);
+  lowerBeak.matrix.set(penguinBaseMatrix);
+  lowerBeak.matrix.translate(-0.0, 0.35, 0.25);
+  lowerBeak.matrix.rotate(-currentBeakAngle, 1, 0, 0);
   lowerBeak.matrix.scale(1, 1, 2.5);
   lowerBeak.matrix.rotate(90, 1, 0, 0);
   lowerBeak.render();
 
-  // Bowtie (inherits waddle)
-  var bowCenter = new Cylinder();
+  // Bowtie
+  let bowCenter = g_reuse.shapes.bowCenter;
   bowCenter.color = [1.0, 0.2, 0.2, 1.0];
-  bowCenter.segments = 12;
-  bowCenter.radiusTop = 0.05;
-  bowCenter.radiusBottom = 0.05;
-  bowCenter.height = 0.15;
-  bowCenter.matrix = new Matrix4(penguinBaseMatrix);
+  bowCenter.matrix.set(penguinBaseMatrix);
   bowCenter.matrix.translate(0.01, 0.06, 0.32);
   bowCenter.matrix.rotate(90, 1, 0, 0);
   bowCenter.render();
 
-  var bowRight = new Cylinder();
+  let bowRight = g_reuse.shapes.bowRight;
   bowRight.color = [1.0, 0.2, 0.2, 1.0];
-  bowRight.segments = 12;
-  bowRight.radiusTop = 0.08;
-  bowRight.radiusBottom = 0.02;
-  bowRight.height = 0.25;
-  bowRight.matrix = new Matrix4(penguinBaseMatrix);
-  bowRight.matrix.translate( - 0.01, 0.05, 0.32);
+  bowRight.matrix.set(penguinBaseMatrix);
+  bowRight.matrix.translate(-0.01, 0.05, 0.32);
   bowRight.matrix.rotate(90, 1, 0, 0);
   bowRight.matrix.rotate(65, 0, 0, 1);
   bowRight.render();
 
-  var bowLeft = new Cylinder();
+  let bowLeft = g_reuse.shapes.bowLeft;
   bowLeft.color = [1.0, 0.2, 0.2, 1.0];
-  bowLeft.segments = 12;
-  bowLeft.radiusTop = 0.08;
-  bowLeft.radiusBottom = 0.02;
-  bowLeft.height = 0.25;
-  bowLeft.matrix = new Matrix4(penguinBaseMatrix);
+  bowLeft.matrix.set(penguinBaseMatrix);
   bowLeft.matrix.translate(0.04, 0.05, 0.32);
   bowLeft.matrix.rotate(90, 1, 0, 0);
-  bowLeft.matrix.rotate( - 70, 0, 0, 1);
+  bowLeft.matrix.rotate(-70, 0, 0, 1);
   bowLeft.render();
 
-  // BODY (inherits waddle)
-  var body = new Cube();
+  // Body
+  let body = g_reuse.shapes.body;
   body.color = [0.1, 0.1, 0.1, 1.0];
-  body.matrix = new Matrix4(penguinBaseMatrix);
-  body.matrix.translate( - 0.35, -0.6, -0.2);
+  body.matrix.set(penguinBaseMatrix);
+  body.matrix.translate(-0.35, -0.6, -0.2);
   body.matrix.scale(0.7, 0.8, 0.5);
   body.render();
 
-  // BELLY (inherits waddle)
-  var belly = new Cube();
+  // Belly
+  let belly = g_reuse.shapes.belly;
   belly.color = [0.95, 0.95, 0.95, 1.0];
-  belly.matrix = new Matrix4(penguinBaseMatrix);
-  belly.matrix.translate( - 0.25, -0.55, -0.05);
+  belly.matrix.set(penguinBaseMatrix);
+  belly.matrix.translate(-0.25, -0.55, -0.05);
   belly.matrix.scale(0.5, 0.7, 0.4);
   belly.render();
 
-  var belly2 = new Cube();
+  let belly2 = g_reuse.shapes.belly2;
   belly2.color = [1.0, 1.0, 1.0, 1.0];
-  belly2.matrix = new Matrix4(penguinBaseMatrix);
-  belly2.matrix.translate( - 0.25, -0.55, 0.3);
+  belly2.matrix.set(penguinBaseMatrix);
+  belly2.matrix.translate(-0.25, -0.55, 0.3);
   belly2.matrix.scale(0.5, 0.55, 0.1);
   belly2.render();
 
-  var belly3 = new Cube();
+  let belly3 = g_reuse.shapes.belly3;
   belly3.color = [0.98, 0.98, 0.98, 1.0];
-  belly3.matrix = new Matrix4(penguinBaseMatrix);
-  belly3.matrix.translate( - 0.25, -0.55, 0.35);
+  belly3.matrix.set(penguinBaseMatrix);
+  belly3.matrix.translate(-0.25, -0.55, 0.35);
   belly3.matrix.scale(0.5, 0.35, 0.1);
   belly3.render();
 
-  // WINGS (inherit waddle)
-  // LEFT WING
-  var leftArm = new Cube();
+  // WINGS with poke flapping
+  // left arm
+  let leftArm = g_reuse.shapes.leftArm;
   leftArm.color = [0.1, 0.1, 0.1, 1.0];
-  leftArm.matrix = new Matrix4(penguinBaseMatrix);
-  leftArm.matrix.translate(0.35, -0.3, 0.15); 
-  leftArm.matrix.rotate(g_armSwingAngle, 0, 0, 1); 
-  leftArm.matrix.translate(0.13, 0.07, 0.2); 
-  leftArm.matrix.rotate(90, -20, 40, 0); 
-  leftArm.matrix.scale(0.5, 0.4, 0.08);
+  leftArm.matrix.set(penguinBaseMatrix);
+  leftArm.matrix.translate(0.3, 0.06, 0.3);
+  let swingBias = -50; 
+  let leftArmAngle = swingBias + g_armSwingAngle + g_pokeArmFlap;  // Add poke flap
+  leftArm.matrix.rotate(leftArmAngle, 0, 0, 1);
+  leftArm.matrix.rotate(-90, 1, 0, 0);  
+  leftArm.matrix.scale(0.7, 0.5, 0.09); 
   leftArm.render();
 
-  // RIGHT WING
-  var rightArm = new Cube();
+  // right wing 
+  let rightArm = g_reuse.shapes.rightArm;
   rightArm.color = [0.1, 0.1, 0.1, 1.0];
-  rightArm.matrix = new Matrix4(penguinBaseMatrix);
-  rightArm.matrix.translate( - 0.35, -0.3, 0.15); 
-  rightArm.matrix.rotate(-g_armSwingAngle, 0, 0, 1);
-  rightArm.matrix.translate( - 0.3, -0.1, 0.2); 
-  rightArm.matrix.rotate(90, 20, 40, 0);
-  rightArm.matrix.scale(0.5, 0.4, 0.08);
+  rightArm.matrix.set(penguinBaseMatrix);
+  rightArm.matrix.translate(-0.36, 0.1, 0.3); 
+  rightArm.matrix.rotate(-leftArmAngle + 180, 0, 0, 1);
+  rightArm.matrix.rotate(-90, 1, 0, 0);
+  rightArm.matrix.scale(0.7, 0.5, 0.09);
   rightArm.render();
 
   // Legs
-  var leftThigh = new Cube();
+  let leftThigh = g_reuse.shapes.leftThigh;
   leftThigh.color = [0.5, 0.5, 0.5, 1.0];
-  leftThigh.matrix = new Matrix4(penguinBaseMatrix);
+  leftThigh.matrix.set(penguinBaseMatrix);
   leftThigh.matrix.translate(0, -0.65, -0.2);
   leftThigh.matrix.rotate(g_legWalkAngle, 1, 0, 0);
   leftThigh.matrix.translate(0, -0.1, 0);
-  var leftThighMatrix = new Matrix4(leftThigh.matrix);
+  let leftThighMatrix = g_reuse.matrices.leftThighMatrix;
+  leftThighMatrix.set(leftThigh.matrix);
   leftThigh.matrix.scale(0.35, 0.15, 0.5);
   leftThigh.render();
 
   // left lower leg 
-  var leftLeg = new Cube();
+  let leftLeg = g_reuse.shapes.leftLeg;
   leftLeg.color = [0.6, 0.6, 0.6, 1.0];
-  leftLeg.matrix = new Matrix4(leftThighMatrix);
+  leftLeg.matrix.set(leftThighMatrix);
   leftLeg.matrix.translate(0, -0.05, 0);
   leftLeg.matrix.rotate(g_lowerLegAngle, 1, 0, 0);
   leftLeg.matrix.translate(0, -0.1, 0);
-  var leftLegMatrix = new Matrix4(leftLeg.matrix);
+  let leftLegMatrix = g_reuse.matrices.leftLegMatrix;
+  leftLegMatrix.set(leftLeg.matrix);
   leftLeg.matrix.scale(0.35, 0.15, 0.5);
   leftLeg.render();
 
   // left foot
-  var leftFoot = new Cube();
+  let leftFoot = g_reuse.shapes.leftFoot;
   leftFoot.color = [1.0, 0.65, 0.0, 1.0];
-  leftFoot.matrix = new Matrix4(leftLegMatrix);
+  leftFoot.matrix.set(leftLegMatrix);
   leftFoot.matrix.translate(0, -0.08, 0);
   leftFoot.matrix.scale(0.35, 0.08, 0.7);
   leftFoot.render();
 
   // right thigh
-  var rightThigh = new Cube();
+  let rightThigh = g_reuse.shapes.rightThigh;
   rightThigh.color = [0.5, 0.5, 0.5, 1.0];
-  rightThigh.matrix = new Matrix4(penguinBaseMatrix);
-  rightThigh.matrix.translate( - 0.35, -0.65, -0.2);
-  rightThigh.matrix.rotate( - g_legWalkAngle, 1, 0, 0);
+  rightThigh.matrix.set(penguinBaseMatrix);
+  rightThigh.matrix.translate(-0.35, -0.65, -0.2);
+  rightThigh.matrix.rotate(-g_legWalkAngle, 1, 0, 0);
   rightThigh.matrix.translate(0, -0.1, 0);
-  var rightThighMatrix = new Matrix4(rightThigh.matrix);
+  let rightThighMatrix = g_reuse.matrices.rightThighMatrix;
+  rightThighMatrix.set(rightThigh.matrix);
   rightThigh.matrix.scale(0.35, 0.15, 0.5);
   rightThigh.render();
 
   // lower right leg
-  var rightLeg = new Cube();
+  let rightLeg = g_reuse.shapes.rightLeg;
   rightLeg.color = [0.6, 0.6, 0.6, 1.0];
-  rightLeg.matrix = new Matrix4(rightThighMatrix);
+  rightLeg.matrix.set(rightThighMatrix);
   rightLeg.matrix.translate(0, -0.05, 0);
-  rightLeg.matrix.rotate( - g_lowerLegAngle, 1, 0, 0);
+  rightLeg.matrix.rotate(-g_lowerLegAngle, 1, 0, 0);
   rightLeg.matrix.translate(0, -0.1, 0);
-  var rightLegMatrix = new Matrix4(rightLeg.matrix);
+  let rightLegMatrix = g_reuse.matrices.rightLegMatrix;
+  rightLegMatrix.set(rightLeg.matrix);
   rightLeg.matrix.scale(0.35, 0.15, 0.5);
   rightLeg.render();
 
   // right foot
-  var rightFoot = new Cube();
+  let rightFoot = g_reuse.shapes.rightFoot;
   rightFoot.color = [1.0, 0.65, 0.0, 1.0];
-  rightFoot.matrix = new Matrix4(rightLegMatrix);
+  rightFoot.matrix.set(rightLegMatrix);
   rightFoot.matrix.translate(0, -0.08, 0);
   rightFoot.matrix.scale(0.35, 0.08, 0.7);
   rightFoot.render();
 
-  // performance
-  var len = g_shapesList.length;
-  var duration = performance.now() - startTime;
-  var fps = duration > 0 ? Math.floor(1000 / duration) : 0;
-  sendTextToHTML("Render Time: " + Math.floor(duration) + "ms | FPS: " + fps, "numdot");
+  // Update performance display
+  let duration = performance.now() - startTime;
+  updatePerformanceDisplay(duration);
 }
 
 function sendTextToHTML(text, htmlID) {
@@ -548,4 +695,44 @@ function sendTextToHTML(text, htmlID) {
     return;
   }
   htmlElm.innerHTML = text;
+}
+
+function mouseDown(ev) {
+  if (ev.shiftKey) {
+    g_pokeAnimation = true;
+    g_pokeStartTime = g_seconds;
+    return; 
+  }
+  
+  g_mouseDown = true;
+  g_lastMouseX = ev.clientX;
+  g_lastMouseY = ev.clientY;
+}
+
+function mouseUp(ev) {
+  g_mouseDown = false;
+}
+
+function mouseMove(ev) {
+  if (!g_mouseDown) {
+    return;
+  }
+  
+  let newX = ev.clientX;
+  let newY = ev.clientY;
+  
+  let deltaX = newX - g_lastMouseX;
+  let deltaY = newY - g_lastMouseY;
+  
+  g_globalAngleY += deltaX * 0.5;
+  g_globalAngleX += deltaY * 0.5;
+  
+  g_globalAngleX = Math.max(-90, Math.min(90, g_globalAngleX));
+  
+  document.getElementById('angleSlide').value = g_globalAngleY * 2;
+  
+  g_lastMouseX = newX;
+  g_lastMouseY = newY;
+  
+  renderAllShapes();
 }
