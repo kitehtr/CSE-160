@@ -10,7 +10,7 @@
     Please use a browser that supports "canvas"
     </canvas>
     <br>
-    <p><strong>Mouse Control:</strong> Click and drag on the canvas to rotate the penguin</p>
+    <p><strong>Mouse Control:</strong> Click and drag on the canvas to rotate the penguin. Shift click to poke the penguin</p>
     <br>
     <p id="numdot">XXX</p>
      <button type="button" id="resetButton">Reset Penguin</button>
@@ -21,7 +21,7 @@
     <input type="color" id="colorPicker" value="#ffffff" style="display: none;">
 
     <br>
-    beak <input type="range" min="0" max = "50" value="0" class="slider" id="BeakSlide">
+    Move Beak <input type="range" min="0" max = "50" value="0" class="slider" id="BeakSlide">
     Beak Animation:
     <button type = "button" id = animationBeakOnButton>ON</button>
     <button type = "button" id = animationBeakOffButton>OFF</button>
@@ -32,10 +32,19 @@
     <button type="button" id="animationArmOnButton">ON</button>
     <button type="button" id="animationArmOffButton">OFF</button>
     <br>
-    Second level joint (Lower Leg) <input type="range" min="-5" max = "5" value="0" class="slider" id="jointSlide"><br><br>
+    Second level joint (Lower Leg) <input type="range" min="-5" max = "5" value="0" class="slider" id="jointSlide">
+    Leg Animation:
+    <button type="button" id="animationLegOnButton">ON</button>
+    <button type="button" id="animationLegOffButton">OFF</button>
+    <br><br>
     Walk Animation: 
     <button type = "button" id = animationWalkOnButton>ON</button>
     <button type = "button" id = animationWalkOffButton>OFF</button>
+    <br><br>
+    Head Turn <input type="range" min="-45" max="45" value="0" class="slider" id="headTurnSlide">
+    Head Turn Animation:
+    <button type="button" id="animationHeadOnButton">ON</button>
+    <button type="button" id="animationHeadOffButton">OFF</button>
     <br><br>
      <button type="button" id="fallOverButton">Activate Penguin Fall Animation</button>
      <br><br>

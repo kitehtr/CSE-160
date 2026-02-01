@@ -30,6 +30,9 @@ let g_yellowAnimation = false;
 let g_BeakAnimation = false;
 let g_ArmAnimation = false;
 let g_armManualAngle = 0;
+let g_legAnimation = false;
+let g_legAnimationStartTime = 0;
+let g_legAnimationDuration = 1.0
 //mouse
 let g_mouseDown = false;
 let g_lastMouseX = null;
@@ -54,6 +57,11 @@ let g_fallRotation = 0;
 let g_fallArmFlail = 0; 
 let g_fallYPosition = 0; 
 let g_fallXPosition = 0;
+
+// head turn animation variables
+let g_headTurnAnimation = false;
+let g_headTurnAngle = 0;
+let g_headTurnManual = 0;
 
 // performance tracking
 let g_frameCount = 0;
@@ -139,6 +147,7 @@ let g_armSwingAngle = 0;
 let g_walkAnimation = false;
 let g_startTime = performance.now() / 1000.0;
 let g_seconds = performance.now() / 1000.0 - g_startTime;
+let g_legManualAngle = 0;
 
 // reuse objects
 let g_reuse = {
@@ -301,13 +310,24 @@ function addActionsForHTMLUI() {
     g_ArmAnimation = false;
   };
 
+  document.getElementById('animationLegOnButton').onclick = function() {
+  g_legAnimation = true;
+  renderAllShapes();
+  };
+
+document.getElementById('animationLegOffButton').onclick = function() {
+  g_legAnimation = false;
+  // Reset to slider value when turning off
+  g_lowerLegAngle = parseFloat(document.getElementById('jointSlide').value);
+  renderAllShapes();
+  };
+
   document.getElementById('armSlide').addEventListener('input',
   function() {
     g_armManualAngle = parseFloat(this.value);
     renderAllShapes();
   });
 
-  // Add the fall button
   document.getElementById('fallOverButton').onclick = function() {
     g_fallAnimation = true;
     g_fallStartTime = g_seconds;
@@ -317,20 +337,23 @@ function addActionsForHTMLUI() {
     g_fallXPosition = 0;
   };
 
-  // Add the reset button
+  
+
   document.getElementById('resetButton').onclick = function() {
     resetPenguin();
   };
 
   document.getElementById('BeakSlide').addEventListener('input',
   function() {
-    g_BeakAngle = this.value;
+    g_BeakAngle = parseFloat(this.value); 
     renderAllShapes();
   });
 
   document.getElementById('jointSlide').addEventListener('input',
   function() {
-    g_lowerLegAngle = this.value;
+    if (!g_legAnimation) {
+      g_lowerLegAngle = parseFloat(this.value);
+    }
     renderAllShapes();
   });
 
@@ -339,23 +362,47 @@ function addActionsForHTMLUI() {
     g_globalAngleY = (this.value * 0.5);
     renderAllShapes();
   });
+
+  // Head turn slider
+  document.getElementById('headTurnSlide').addEventListener('input',
+  function() {
+    if (!g_headTurnAnimation) {
+      g_headTurnManual = parseFloat(this.value);
+    }
+    renderAllShapes();
+  });
+
+  // Head turn animation buttons
+  document.getElementById('animationHeadOnButton').onclick = function() {
+    g_headTurnAnimation = true;
+  };
+
+  document.getElementById('animationHeadOffButton').onclick = function() {
+    g_headTurnAnimation = false;
+    g_headTurnAngle = g_headTurnManual;
+  };
 }
 
 // reset function to restore penguin to original state
 function resetPenguin() {
-  g_fallAnimation = false;
+
   g_fallRotation = 0;
   g_fallArmFlail = 0;
   g_fallYPosition = 0;
   g_fallXPosition = 0;
-  g_pokeAnimation = false;
   g_pokeEyeScale = 1.0;
   g_pokeBodyJump = 0;
   g_pokeArmFlap = 0;
   g_pokeBeakOpen = 0;
+  g_fallAnimation = false;
+  g_pokeAnimation = false;
   g_BeakAnimation = false;
   g_walkAnimation = false;
   g_ArmAnimation = false;
+  g_legAnimation = false;
+  g_headTurnAnimation = false; 
+  g_headTurnAngle = 0; 
+  g_headTurnManual = 0;
   g_bodyWaddle = 0;
   g_legWalkAngle = 0;
   g_armSwingAngle = 0;
@@ -369,6 +416,7 @@ function resetPenguin() {
   document.getElementById('jointSlide').value = 0;
   document.getElementById('angleSlide').value = 5;
   document.getElementById('armSlide').value = 0;
+  document.getElementById('headTurnSlide').value = 0;
   renderAllShapes();
 }
 
@@ -440,6 +488,17 @@ function tick() {
   requestAnimationFrame(tick);
 }
 
+function updateLegAnimation() {
+  if (g_legAnimation) {
+    let oscillation = Math.sin(g_seconds * 2); 
+    g_lowerLegAngle = oscillation * 5; 
+    
+    document.getElementById('jointSlide').value = g_lowerLegAngle;
+  } else {
+    g_lowerLegAngle = parseFloat(document.getElementById('jointSlide').value);
+  }
+}
+
 function updateAnimationAngles() {
   if (g_BeakAnimation) {
     g_BeakAngle = (30 * Math.sin(3 * g_seconds));
@@ -452,19 +511,24 @@ function updateAnimationAngles() {
   }
 
   if (g_ArmAnimation && !g_walkAnimation) {
-    // Independent arm swinging animation
     g_armSwingAngle = (25 * Math.sin(2 * g_seconds));
   } else if (!g_walkAnimation && !g_ArmAnimation) {
-    // Use manual slider value when no animation is active
     g_armSwingAngle = g_armManualAngle;
   }
   
-  
-  // Update poke animation
+  updateLegAnimation();
   updatePokeAnimation();
-  
-  // Update fall animation
   updateFallAnimation();
+  updateHeadTurnAnimation();
+}
+
+function updateHeadTurnAnimation() {
+  if (g_headTurnAnimation) {
+    g_headTurnAngle = 45 * Math.sin(g_seconds * 2);
+    document.getElementById('headTurnSlide').value = g_headTurnAngle;
+  } else {
+    g_headTurnAngle = g_headTurnManual;
+  }
 }
 
 function updatePokeAnimation() {
@@ -473,7 +537,7 @@ function updatePokeAnimation() {
     let progress = elapsed / g_pokeDuration;
     
     if (progress >= 1.0) {
-      // Animation finished
+      // animation finished
       g_pokeAnimation = false;
       g_pokeEyeScale = 1.0;
       g_pokeBodyJump = 0;
@@ -489,6 +553,7 @@ function updatePokeAnimation() {
     }
   }
 }
+
 
 function updateFallAnimation() {
   if (g_fallAnimation) {
@@ -562,10 +627,16 @@ function renderAllShapes() {
     let penguinBaseMatrix = g_reuse.matrices.penguinBaseMatrix;
     penguinBaseMatrix.set(penguinBase);
 
+    let headMatrix = new Matrix4();
+    headMatrix.set(penguinBaseMatrix);
+    headMatrix.translate(0, 0.45, 0); 
+    headMatrix.rotate(g_headTurnAngle, 0, 1, 0); 
+    headMatrix.translate(0, -0.45, 0); 
+
     //head 
     let head = g_reuse.shapes.head;
     head.color = [0.1, 0.1, 0.1, 1.0];
-    head.matrix.set(penguinBaseMatrix);
+    head.matrix.set(headMatrix);
     head.matrix.translate(-0.35, 0.2, -0.2);
     head.matrix.scale(0.7, 0.7, 0.5);
     head.render();
@@ -573,7 +644,7 @@ function renderAllShapes() {
     // left eye with poke scaling
     let leftEye = g_reuse.shapes.leftEye;
     leftEye.color = [0.98, 0.98, 0.98, 1.0];
-    leftEye.matrix.set(penguinBaseMatrix);
+    leftEye.matrix.set(headMatrix);
     leftEye.matrix.translate(0.15, 0.6, 0.25);
     leftEye.matrix.rotate(90, 1, 0, 0);
     leftEye.matrix.scale(1.5 * g_pokeEyeScale, 0.8 * g_pokeEyeScale, 1.2 * g_pokeEyeScale);
@@ -581,7 +652,7 @@ function renderAllShapes() {
 
     let leftPupil = g_reuse.shapes.leftPupil;
     leftPupil.color = [0.1, 0.1, 0.1, 1.0];
-    leftPupil.matrix.set(penguinBaseMatrix);
+    leftPupil.matrix.set(headMatrix);
     leftPupil.matrix.translate(0.15, 0.6, 0.38);
     leftPupil.matrix.rotate(90, 1, 0, 0);
     leftPupil.matrix.scale(g_pokeEyeScale, g_pokeEyeScale, g_pokeEyeScale);
@@ -590,7 +661,7 @@ function renderAllShapes() {
     // right eye with poke scaling
     let rightEye = g_reuse.shapes.rightEye;
     rightEye.color = [0.98, 0.98, 0.98, 1.0];
-    rightEye.matrix.set(penguinBaseMatrix);
+    rightEye.matrix.set(headMatrix);
     rightEye.matrix.translate(-0.15, 0.6, 0.25);
     rightEye.matrix.rotate(90, 1, 0, 0);
     rightEye.matrix.scale(1.5 * g_pokeEyeScale, 0.8 * g_pokeEyeScale, 1.2 * g_pokeEyeScale);
@@ -598,7 +669,7 @@ function renderAllShapes() {
 
     let rightPupil = g_reuse.shapes.rightPupil;
     rightPupil.color = [0.1, 0.1, 0.1, 1.0];
-    rightPupil.matrix.set(penguinBaseMatrix);
+    rightPupil.matrix.set(headMatrix);
     rightPupil.matrix.translate(-0.15, 0.6, 0.38);
     rightPupil.matrix.rotate(90, 1, 0, 0);
     rightPupil.matrix.scale(g_pokeEyeScale, g_pokeEyeScale, g_pokeEyeScale);
@@ -607,7 +678,7 @@ function renderAllShapes() {
     // left eyelid 
     let leftEyelid = g_reuse.shapes.leftEyelid;
     leftEyelid.color = [0.1, 0.1, 0.1, 1.0];
-    leftEyelid.matrix.set(penguinBaseMatrix);
+    leftEyelid.matrix.set(headMatrix);
     leftEyelid.matrix.translate(0.15, 0.65, 0.372);
     leftEyelid.matrix.rotate(270, 1, 0, 0);
     leftEyelid.matrix.scale(1.2, 0.9, 1.2);
@@ -615,19 +686,19 @@ function renderAllShapes() {
 
     let rightEyelid = g_reuse.shapes.rightEyelid;
     rightEyelid.color = [0.1, 0.1, 0.1, 1.0];
-    rightEyelid.matrix.set(penguinBaseMatrix);
+    rightEyelid.matrix.set(headMatrix);
     rightEyelid.matrix.translate(-0.15, 0.65, 0.372);
     rightEyelid.matrix.rotate(270, 1, 0, 0);
     rightEyelid.matrix.scale(1.2, 0.9, 1.2);
     rightEyelid.render();
 
     //mouth/beak with poke animation
-    let currentBeakAngle = g_BeakAnimation ? g_BeakAngle : 0;
+    let currentBeakAngle = g_BeakAngle;  
     currentBeakAngle += g_pokeBeakOpen;  
     
     let upperBeak = g_reuse.shapes.upperBeak;
     upperBeak.color = [1.0, 0.8, 0.3, 1.0];
-    upperBeak.matrix.set(penguinBaseMatrix);
+    upperBeak.matrix.set(headMatrix);
     upperBeak.matrix.translate(-0.0, 0.345, 0.25);
     upperBeak.matrix.rotate(currentBeakAngle, 1, 0, 0);
     upperBeak.matrix.scale(1, 1, 2.5);
@@ -637,14 +708,14 @@ function renderAllShapes() {
     //lower beak
     let lowerBeak = g_reuse.shapes.lowerBeak;
     lowerBeak.color = [1.0, 0.8, 0.3, 1.0];
-    lowerBeak.matrix.set(penguinBaseMatrix);
+    lowerBeak.matrix.set(headMatrix);
     lowerBeak.matrix.translate(-0.0, 0.35, 0.25);
     lowerBeak.matrix.rotate(-currentBeakAngle, 1, 0, 0);
     lowerBeak.matrix.scale(1, 1, 2.5);
     lowerBeak.matrix.rotate(90, 1, 0, 0);
     lowerBeak.render();
 
-    // Bowtie
+    // Bowtie 
     let bowCenter = g_reuse.shapes.bowCenter;
     bowCenter.color = [1.0, 0.2, 0.2, 1.0];
     bowCenter.matrix.set(penguinBaseMatrix);
