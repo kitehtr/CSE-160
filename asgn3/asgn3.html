@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Keith Tran - Assignment 3</title>
+  </head>
+
+  <body onload="main()">
+    <canvas id="webgl" width="500" height="500">
+    Please use a browser that supports "canvas"
+    </canvas>
+    <br>
+    <p id="fps" style="font-weight: bold; color: green;">FPS: 0</p>
+    <p id="numdot">XXX</p>
+     <button type="button" id="resetButton">Reset Penguin</button>
+
+    <br>
+    <br>
+
+    <input type="color" id="colorPicker" value="#ffffff" style="display: none;">
+
+    <br>
+    Move Beak <input type="range" min="0" max = "50" value="0" class="slider" id="BeakSlide">
+    Beak Animation:
+    <button type = "button" id = animationBeakOnButton>ON</button>
+    <button type = "button" id = animationBeakOffButton>OFF</button>
+    <br>
+    <br>
+    Arm Swing <input type="range" min="-30" max="30" value="0" class="slider" id="armSlide">
+    Arm Swing Animation:
+    <button type="button" id="animationArmOnButton">ON</button>
+    <button type="button" id="animationArmOffButton">OFF</button>
+    <br>
+    Second level joint (Lower Leg) <input type="range" min="-5" max = "5" value="0" class="slider" id="jointSlide">
+    Leg Animation:
+    <button type="button" id="animationLegOnButton">ON</button>
+    <button type="button" id="animationLegOffButton">OFF</button>
+    <br><br>
+    Walk Animation: 
+    <button type = "button" id = animationWalkOnButton>ON</button>
+    <button type = "button" id = animationWalkOffButton>OFF</button>
+    <br><br>
+    Head Turn <input type="range" min="-45" max="45" value="0" class="slider" id="headTurnSlide">
+    Head Turn Animation:
+    <button type="button" id="animationHeadOnButton">ON</button>
+    <button type="button" id="animationHeadOffButton">OFF</button>
+    <br><br>
+     <button type="button" id="fallOverButton">Activate Penguin Fall Animation</button>
+     <br><br>
+    Camera Angle <input type="range" min="0" max = "720" value="5" class="slider" id="angleSlide">
+    <br>
+
+    
+    <script src="lib/cuon-matrix.js"></script>
+    <script src="lib/cuon-utils.js"></script>
+    <script src="lib/webgl-utils.js"></script>
+    <script src="lib/webgl-debug.js"></script>
+    <script src="vector.js"></script>
+    <script src="camera.js"></script>
+    <script src="cylinder.js"></script>
+    <script src="triangle.js"></script>
+    <script src="point.js"></script>
+    <script src="circle.js"></script>
+    <script src="cube.js"></script>
+    <script src="asgn3.js"></script>
+    <br><br>
+    
+
+  </body>
+</html>
