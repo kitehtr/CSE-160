@@ -2,55 +2,230 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Keith Tran - Assignment 3</title>
+    <title>Keith Tran - Assignment 3 - Virtual World</title>
+    <style>
+      body {
+        margin: 20px;
+        font-family: Arial, sans-serif;
+        background-color: #222;
+        color: white;
+      }
+      #gameContainer {
+        position: relative;
+        width: 500px;
+        margin: 0 auto;
+      }
+      #gameStatus {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: Arial, sans-serif;
+        font-size: 24px;
+        color: white;
+        text-align: center;
+        text-shadow: 2px 2px 4px black;
+        z-index: 1000;
+        background-color: rgba(0, 0, 0, 0.7);
+        padding: 10px 20px;
+        border-radius: 10px;
+        border: 2px solid #444;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+      #gameStatus.victory {
+        color: gold;
+        font-size: 32px;
+        background-color: rgba(0, 0, 0, 0.8);
+        border-color: gold;
+        animation: pulse 1.5s infinite;
+      }
+      #gameStatus.gameOver {
+        color: red;
+        font-size: 32px;
+        background-color: rgba(0, 0, 0, 0.8);
+        border-color: red;
+        animation: shake 0.5s;
+      }
+      @keyframes pulse {
+        0% { transform: translateX(-50%) scale(1); }
+        50% { transform: translateX(-50%) scale(1.1); }
+        100% { transform: translateX(-50%) scale(1); }
+      }
+      @keyframes shake {
+        0%, 100% { transform: translateX(-50%); }
+        25% { transform: translateX(-52%); }
+        75% { transform: translateX(-48%); }
+      }
+      #controls {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #333;
+        border-radius: 10px;
+        border: 1px solid #555;
+      }
+      .key {
+        background-color: #444;
+        border: 1px solid #666;
+        border-radius: 5px;
+        padding: 2px 8px;
+        font-weight: bold;
+        color: #ffaa00;
+        display: inline-block;
+        min-width: 30px;
+        text-align: center;
+      }
+      #stats {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #333;
+        border-radius: 10px;
+        border: 1px solid #555;
+      }
+      .stat-row {
+        display: flex;
+        justify-content: space-between;
+        margin: 5px 0;
+        font-size: 18px;
+      }
+      .stat-label {
+        color: #aaa;
+      }
+      .stat-value {
+        color: #ffaa00;
+        font-weight: bold;
+      }
+      #gameInstructions {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #2a2a2a;
+        border-radius: 10px;
+        border: 1px solid #ffaa00;
+      }
+      #gameInstructions h3 {
+        margin: 0 0 10px 0;
+        color: #ffaa00;
+      }
+      .controls-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-top: 10px;
+      }
+      .control-group {
+        background-color: #333;
+        padding: 10px;
+        border-radius: 5px;
+      }
+      .control-group h4 {
+        margin: 0 0 10px 0;
+        color: #ffaa00;
+      }
+      .control-item {
+        margin: 5px 0;
+        color: #ddd;
+      }
+      #bonusFeatures {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #2a2a2a;
+        border-radius: 10px;
+        border: 1px solid #888;
+      }
+      #bonusFeatures h3 {
+        margin: 0 0 10px 0;
+        color: #ffaa00;
+      }
+      .feature-list {
+        color: #ddd;
+        line-height: 1.6;
+      }
+    </style>
   </head>
 
   <body onload="main()">
-    <canvas id="webgl" width="500" height="500">
-    Please use a browser that supports "canvas"
-    </canvas>
-    <br>
-    <p id="fps" style="font-weight: bold; color: green;">FPS: 0</p>
-    <p id="numdot">XXX</p>
-     <button type="button" id="resetButton">Reset Penguin</button>
+    <div id="gameContainer">
+      <canvas id="webgl" width="500" height="500">
+        Please use a browser that supports "canvas"
+      </canvas>
+      <div id="gameStatus">Press G to start TNT Defusal Mission</div>
+    </div>
 
-    <br>
-    <br>
+    <div style="text-align: center; margin: 10px 0;">
+      <p id="fps" style="font-weight: bold; color: green; font-size: 18px;">FPS: 0</p>
+    </div>
 
-    <input type="color" id="colorPicker" value="#ffffff" style="display: none;">
+    <div id="stats">
+      <div class="stat-row">
+        <span class="stat-label">Game Status:</span>
+        <span class="stat-value" id="gameStateDisplay">Not Started</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">TNT Remaining:</span>
+        <span class="stat-value" id="tntCount">0/0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Time Remaining:</span>
+        <span class="stat-value" id="timeRemaining">0s</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Camera Position:</span>
+        <span class="stat-value" id="cameraPos">(0, 2, 10)</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Blocks Rendered:</span>
+        <span class="stat-value" id="blocksRendered">0</span>
+      </div>
+    </div>
 
-    <br>
-    Move Beak <input type="range" min="0" max = "50" value="0" class="slider" id="BeakSlide">
-    Beak Animation:
-    <button type = "button" id = animationBeakOnButton>ON</button>
-    <button type = "button" id = animationBeakOffButton>OFF</button>
-    <br>
-    <br>
-    Arm Swing <input type="range" min="-30" max="30" value="0" class="slider" id="armSlide">
-    Arm Swing Animation:
-    <button type="button" id="animationArmOnButton">ON</button>
-    <button type="button" id="animationArmOffButton">OFF</button>
-    <br>
-    Second level joint (Lower Leg) <input type="range" min="-5" max = "5" value="0" class="slider" id="jointSlide">
-    Leg Animation:
-    <button type="button" id="animationLegOnButton">ON</button>
-    <button type="button" id="animationLegOffButton">OFF</button>
-    <br><br>
-    Walk Animation: 
-    <button type = "button" id = animationWalkOnButton>ON</button>
-    <button type = "button" id = animationWalkOffButton>OFF</button>
-    <br><br>
-    Head Turn <input type="range" min="-45" max="45" value="0" class="slider" id="headTurnSlide">
-    Head Turn Animation:
-    <button type="button" id="animationHeadOnButton">ON</button>
-    <button type="button" id="animationHeadOffButton">OFF</button>
-    <br><br>
-     <button type="button" id="fallOverButton">Activate Penguin Fall Animation</button>
-     <br><br>
-    Camera Angle <input type="range" min="0" max = "720" value="5" class="slider" id="angleSlide">
-    <br>
+    <div id="gameInstructions">
+      <h3>TNT Defusal Game</h3>
+      <p>Find and defuse the TNT blocks before time runs out.</p>
+      
+      <div class="controls-grid">
+        <div class="control-group">
+          <h4>Game Controls</h4>
+          <div class="control-item"><span class="key">G</span> - Start/Restart Game</div>
+          <div class="control-item"><span class="key">F</span> - Defuse TNT (when close)</div>
+          <div class="control-item"><span class="key">SPACE</span> - Add Block</div>
+          <div class="control-item"><span class="key">X</span> - Delete Block</div>
+        </div>
+        
+        <div class="control-group">
+          <h4>Camera Controls</h4>
+          <div class="control-item"><span class="key">W</span> <span class="key">A</span> <span class="key">S</span> <span class="key">D</span> - Move</div>
+          <div class="control-item"><span class="key">Q</span> / <span class="key">E</span> - Turn</div>
+          <div class="control-item"><span class="key">Mouse Drag</span> - Look Around</div>
+        </div>
+      </div>
+      
+      <div style="margin-top: 15px; padding: 10px; background-color: #333; border-radius: 5px;">
+        <h4 style="margin: 0 0 5px 0; color: #ffaa00;">Objective</h4>
+        <p style="margin: 0; color: #ddd;">Find and defuse all TNT blocks before the 3-minute timer runs out. Press <span class="key">F</span> when standing next to a TNT block to defuse it.</p>
+      </div>
+    </div>
 
-    
+    <div id="controls">
+      <div style="margin-top: 10px;">
+        <span>Camera Angle:</span>
+        <input type="range" min="0" max="720" value="5" class="slider" id="angleSlide" style="width: 300px;">
+      </div>
+    </div>
+
+    <!-- Bonus Features Section -->
+    <div id="bonusFeatures">
+      <h3>Additional Features</h3>
+      <div class="feature-list">
+        - Victory fireworks display when all TNT is defused<br>
+        - White screen flash effect when time expires<br>
+        - Floating red particles orbit active TNT blocks<br>
+        - TNT blocks pulse in size and color<br>
+        - Timer color changes from green to orange to red as time runs low<br>
+        - Four different textures (sky, bookshelf, ice, TNT)<br>
+      </div>
+    </div>
+
+
     <script src="lib/cuon-matrix.js"></script>
     <script src="lib/cuon-utils.js"></script>
     <script src="lib/webgl-utils.js"></script>
@@ -63,8 +238,5 @@
     <script src="circle.js"></script>
     <script src="cube.js"></script>
     <script src="asgn3.js"></script>
-    <br><br>
-    
-
   </body>
 </html>

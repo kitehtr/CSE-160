@@ -26,6 +26,7 @@ uniform sampler2D u_Sampler2;
 uniform sampler2D u_Sampler3;
 uniform float u_texColorWeight;
 uniform int u_whichTexture;
+uniform float u_FlashIntensity;
 void main() {
   if (u_whichTexture == -2) {
     gl_FragColor = u_FragColor;
@@ -56,6 +57,11 @@ void main() {
   } else {
     gl_FragColor = vec4(1.0, 0.2, 1.0, 1.0);
   }
+  
+  // Apply flash effect (white screen overlay)
+  if (u_FlashIntensity > 0.0) {
+    gl_FragColor = mix(gl_FragColor, vec4(1.0, 1.0, 1.0, 1.0), u_FlashIntensity);
+  }
 }`
 
 // Global Variables
@@ -76,6 +82,7 @@ let u_Sampler3;
 let u_whichTexture;
 let g_globalAngle = 0;
 let u_texColorWeight;
+let u_FlashIntensity;
 
 // performance tracking
 let g_frameCount = 0;
@@ -86,12 +93,8 @@ let g_lastRenderTime = 0;
 // Reusable cube object 
 let g_reusableCube = null;
 
-// Camera controls
-let g_cameraPos = [0, 2, 10];  
-let g_cameraYaw = 0;        
-let g_cameraPitch = 0;          
-let g_moveSpeed = 0.2;
-let g_rotateSpeed = 2.0;
+// Camera
+var g_camera;
 
 // Mouse control
 let g_mouseDown = false;
@@ -99,17 +102,23 @@ let g_lastMouseX = 0;
 let g_lastMouseY = 0;
 let g_mouseSensitivity = 0.2;
 
-// Key states
-let g_keys = {};
-
 // TNT GAME variables
 let g_tntBlocks = []; 
-let g_tntTotal = 3;
-let g_tntRemaining = 3;
+let g_tntTotal = 5;
+let g_tntRemaining = 5;
 let g_gameStarted = false;
 let g_gameWon = false;
 let g_gameStartTime = 0;
-let g_gameTimeLimit = 120; 
+let g_gameTimeLimit = 180;
+let g_victoryTime = 0;
+
+// Fireworks variables
+let g_fireworks = [];
+let g_fireworkTime = 0;
+
+// Flash effect variables
+let g_flashIntensity = 0.0;
+let g_flashDecay = 0.05;
 
 function setupWebGL() {
   // Retrieve <canvas> element
@@ -213,6 +222,12 @@ function connectVariablesToGLSL() {
     console.log('Failed to get the storage location of u_texColorWeight');
     return;
   }
+
+  u_FlashIntensity = gl.getUniformLocation(gl.program, 'u_FlashIntensity');
+  if (!u_FlashIntensity) {
+    console.log('Failed to get the storage location of u_FlashIntensity');
+    return;
+  }
 }
 
 //Constants
@@ -225,47 +240,7 @@ let g_selectedSize = 5;
 var g_startTime = performance.now()/1000.0;
 var g_seconds = performance.now()/1000.0 - g_startTime;
 
-
 function addActionsForHTMLUI() {
-  //Button Events (Shape Type)
-  document.getElementById('animationBeakOffButton').onclick = function() {
-    g_BeakAnimation = false;
-  };
-
-  document.getElementById('animationBeakOnButton').onclick = function() {
-    g_BeakAnimation = true;
-  };
-
-  document.getElementById('animationWalkOnButton').onclick = function() {
-    g_walkAnimation = true;
-  };
-
-  document.getElementById('animationWalkOffButton').onclick = function() {
-    g_walkAnimation = false;
-  };
-
-  document.getElementById('animationArmOnButton').onclick = function() {
-    g_ArmAnimation = true;
-  };
-
-  document.getElementById('animationArmOffButton').onclick = function() {
-    g_ArmAnimation = false;
-  };
-
-  document.getElementById('animationLegOnButton').onclick = function() {
-    g_legAnimation = true;
-    renderAllShapes();
-  };
-
-  document.getElementById('fallOverButton').onclick = function() {
-    g_fallAnimation = true;
-    g_fallStartTime = g_seconds;
-    g_fallRotation = 0;
-    g_fallArmFlail = 0;
-    g_fallYPosition = 0;
-    g_fallXPosition = 0;
-  };
-
   document.getElementById('angleSlide').addEventListener('input',
     function() {
       g_globalAngle = (this.value * 0.5);
@@ -302,14 +277,14 @@ function initTextures(gl, n) {
   image2.onload = function() { sendImageToTexture(image2, 2); };
   image2.src = 'ice-cube.png';
 
-  // Load texture 3 - tnt.png
+  // Load texture 3 - tnt.jpg
   var image3 = new Image();
   if(!image3) {
     console.log('Failed to create the image3 object');
     return false;
   }
   image3.onload = function() { sendImageToTexture(image3, 3); };
-  image3.src = 'tnt.png';
+  image3.src = 'tnt.jpg';
   
   return true;
 }
@@ -370,9 +345,6 @@ function main() {
   // Initialize camera
   g_camera = new Camera(canvas);
 
-  // Initialize reusable shapes
-  // initReusableShapes();
-  
   addActionsForHTMLUI();
 
   document.onkeydown = keydown;
@@ -397,16 +369,17 @@ function main() {
 function tick() {
   g_seconds = performance.now() / 1000.0 - g_startTime;
   
-  // updateAnimationAngles();
+  // Update flash effect decay
+  if (g_flashIntensity > 0) {
+    g_flashIntensity = Math.max(0, g_flashIntensity - g_flashDecay);
+  }
+  
   renderAllShapes();
   
   requestAnimationFrame(tick);
 }
 
 var g_shapesList = [];
-
-// Camera will be initialized in main()
-var g_camera;
 
 // 32x32 world map 
 var g_map = [
@@ -443,7 +416,6 @@ var g_map = [
   [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
   [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
 ];
-
 
 function keydown(ev) {
   // W - Move forward
@@ -534,43 +506,104 @@ function handleMouseMove(ev) {
   g_lastMouseY = currentY;
 }
 
-function initTNTGame() {
+// Helper function to place a random TNT block
+function placeRandomTNT() {
+  let attempts = 0;
+  let maxAttempts = 500;
+  
+  while (attempts < maxAttempts) {
+    attempts++;
+    
+    let x = Math.floor(Math.random() * 28) + 2;
+    let z = Math.floor(Math.random() * 28) + 2; 
+    
+    if (g_map[z][x] === 0) {
+      let tooClose = false;
+      for (let tnt of g_tntBlocks) {
+        let distX = Math.abs(tnt.x - x);
+        let distZ = Math.abs(tnt.z - z);
+        if (distX < 3 && distZ < 3) {
+          tooClose = true;
+          break;
+        }
+      }
+      
+      if (!tooClose) {
+        g_map[z][x] = 1;
+        g_tntBlocks.push({
+          x: x,
+          z: z,
+          active: true
+        });
+        console.log(`Placed random TNT at (${x}, ${z})`);
+        return true;
+      }
+    }
+  }
+  
+  console.log("Could not find valid location for random TNT after", maxAttempts, "attempts");
+  return false;
+}
 
+function initTNTGame() {
+  g_fireworks = [];
+  
+  for (let tnt of g_tntBlocks) {
+    if (tnt.active) {
+      g_map[tnt.z][tnt.x] = 0;
+    }
+  }
+  
   g_tntBlocks = [];
-  g_tntRemaining = 1;
-  g_tntTotal = 1;
+  g_tntRemaining = 5;
+  g_tntTotal = 5;
+  g_victoryTime = 0;
 
   g_gameStarted = true;
   g_gameWon = false;
   g_gameStartTime = g_seconds;
 
-  let block = getBlockInFront();
+  let tutorialBlock = getBlockInFront();
+  
+  let tutorialPlaced = false;
+  if (tutorialBlock) {
+    let spawnX = tutorialBlock.x;
+    let spawnZ = tutorialBlock.z;
 
-  if (!block) {
-    console.log("Couldn't find valid block in front of player.");
-    return;
+    console.log("Spawning tutorial TNT at map coordinates:", spawnX, spawnZ);
+
+    if (g_map[spawnZ][spawnX] === 0) {
+      g_map[spawnZ][spawnX] = 1;
+    }
+
+    g_tntBlocks.push({
+      x: spawnX,
+      z: spawnZ,
+      active: true
+    });
+    
+    tutorialPlaced = true;
+    console.log("Tutorial TNT placed");
+  } else {
+    console.log("Couldn't find valid block in front of player for tutorial TNT");
   }
 
-  let spawnX = block.x;
-  let spawnZ = block.z;
-
-  console.log("Spawning TNT at:", spawnX, spawnZ);
-
-  if (g_map[spawnZ][spawnX] === 0) {
-    g_map[spawnZ][spawnX] = 1;
+  let remainingToPlace = tutorialPlaced ? 4 : 5;
+  let placed = 0;
+  
+  while (placed < remainingToPlace) {
+    if (placeRandomTNT()) {
+      placed++;
+    }
   }
 
-  g_tntBlocks.push({
-    x: spawnX,
-    z: spawnZ,
-    active: true
-  });
-
+  console.log(`TNT Game Started! Total TNT: ${g_tntBlocks.length}`);
   updateGameUI();
 }
 
 function getNearbyTNT() {
   let camX = g_camera.eye.elements[0];
+  let camY = g_camera.eye.elements[1];
   let camZ = g_camera.eye.elements[2];
   
   for (let i = 0; i < g_tntBlocks.length; i++) {
@@ -578,13 +611,16 @@ function getNearbyTNT() {
     if (!tnt.active) continue;
     
     let tntWorldX = tnt.x - 16;
+    let tntWorldY = 0;
     let tntWorldZ = tnt.z - 16;
     
     let distX = tntWorldX - camX;
+    let distY = tntWorldY - camY;
     let distZ = tntWorldZ - camZ;
-    let distSq = distX * distX + distZ * distZ;
+    let distSq = distX * distX + distY * distY + distZ * distZ;
     
-    if (distSq < 4) { 
+    if (distSq < 16) { 
+      console.log(`Found TNT at index ${i}, distance: ${Math.sqrt(distSq).toFixed(2)}`);
       return i;
     }
   }
@@ -597,15 +633,26 @@ function defuseTNT() {
 
   if (tntIndex !== -1) {
     let tnt = g_tntBlocks[tntIndex];
+    
+    if (!tnt.active) {
+      console.log("This TNT has already been defused!");
+      return;
+    }
+    
     tnt.active = false;
     g_tntRemaining--;
+    
+    g_map[tnt.z][tnt.x] = 0;
 
     console.log(`TNT Defused! Remaining: ${g_tntRemaining}`);
 
     if (g_tntRemaining === 0) {
       g_gameWon = true;
-      let timeElapsed = (g_seconds - g_gameStartTime).toFixed(1);
-      console.log(`🎉 VICTORY! All TNT defused in ${timeElapsed} seconds!`);
+      g_victoryTime = g_seconds - g_gameStartTime;
+      let timeElapsed = g_victoryTime.toFixed(1);
+      console.log(`VICTORY! All TNT defused in ${timeElapsed} seconds!`);
+      
+      createVictoryFireworks();
     }
 
     updateGameUI();
@@ -614,37 +661,214 @@ function defuseTNT() {
   }
 }
 
-// Update game UI
+function createVictoryFireworks() {
+  g_fireworks = [];
+  for (let i = 0; i < 10; i++) {
+    g_fireworks.push({
+      x: (Math.random() - 0.5) * 30,
+      y: 2 + Math.random() * 10,
+      z: (Math.random() - 0.5) * 30,
+      particles: [],
+      exploded: false,
+      explodeTime: g_seconds + 0.5 + Math.random() * 1.5,
+      color: [Math.random(), Math.random(), Math.random(), 1.0]
+    });
+  }
+}
+
+function updateFireworks() {
+  if (!g_gameWon) return;
+  
+  if (g_fireworks.length < 15 && Math.random() < 0.02) {
+    g_fireworks.push({
+      x: (Math.random() - 0.5) * 30,
+      y: 2 + Math.random() * 12,
+      z: (Math.random() - 0.5) * 30,
+      particles: [],
+      exploded: false,
+      explodeTime: g_seconds + 0.3 + Math.random() * 1,
+      color: [Math.random(), Math.random(), Math.random(), 1.0]
+    });
+  }
+  
+  for (let i = g_fireworks.length - 1; i >= 0; i--) {
+    let fw = g_fireworks[i];
+    
+    if (!fw.exploded && g_seconds >= fw.explodeTime) {
+      fw.exploded = true;
+      for (let j = 0; j < 20; j++) {
+        let angle = (j / 20) * Math.PI * 2;
+        let speed = 0.5 + Math.random() * 0.5;
+        fw.particles.push({
+          x: fw.x,
+          y: fw.y,
+          z: fw.z,
+          vx: Math.cos(angle) * speed,
+          vy: Math.random() * speed,
+          vz: Math.sin(angle) * speed,
+          life: 1.0,
+          color: fw.color
+        });
+      }
+    }
+    
+    for (let j = fw.particles.length - 1; j >= 0; j--) {
+      let p = fw.particles[j];
+      p.x += p.vx * 0.1;
+      p.y += p.vy * 0.1;
+      p.z += p.vz * 0.1;
+      p.life -= 0.01;
+      
+      if (p.life <= 0) {
+        fw.particles.splice(j, 1);
+      }
+    }
+    
+    if (fw.exploded && fw.particles.length === 0) {
+      g_fireworks.splice(i, 1);
+    }
+  }
+}
+
+function renderFireworks() {
+  if (!g_gameWon) return;
+  
+  for (let fw of g_fireworks) {
+    if (!fw.exploded) {
+      let rocket = new Cube();
+      rocket.color = [1.0, 1.0, 1.0, 1.0];
+      rocket.textureNum = -2;
+      rocket.matrix = new Matrix4()
+        .translate(fw.x, fw.y, fw.z)
+        .scale(0.2, 0.2, 0.2);
+      rocket.render();
+    }
+    
+    for (let p of fw.particles) {
+      let particle = new Cube();
+      particle.color = [p.color[0], p.color[1], p.color[2], p.life];
+      particle.textureNum = -2;
+      particle.matrix = new Matrix4()
+        .translate(p.x, p.y, p.z)
+        .scale(0.1, 0.1, 0.1);
+      particle.render();
+    }
+  }
+}
+
 function updateGameUI() {
   let gameElement = document.getElementById('gameStatus');
+  let gameStateDisplay = document.getElementById('gameStateDisplay');
+  let tntCountElement = document.getElementById('tntCount');
+  let timeRemainingElement = document.getElementById('timeRemaining');
+  let camPosElement = document.getElementById('cameraPos');
+  
   if (!gameElement) return;
   
+  if (camPosElement && g_camera) {
+    let x = g_camera.eye.elements[0].toFixed(1);
+    let y = g_camera.eye.elements[1].toFixed(1);
+    let z = g_camera.eye.elements[2].toFixed(1);
+    camPosElement.innerHTML = `(${x}, ${y}, ${z})`;
+  }
+  
   if (!g_gameStarted) {
-    gameElement.innerHTML = 'Press G to start TNT Defusal Mission!';
+    gameElement.innerHTML = 'Press G to start TNT Defusal Mission';
+    gameElement.className = '';
     gameElement.style.color = 'white';
     gameElement.style.fontSize = '24px';
+    
+    if (gameStateDisplay) gameStateDisplay.innerHTML = 'Not Started';
+    if (tntCountElement) tntCountElement.innerHTML = '0/0';
+    if (timeRemainingElement) timeRemainingElement.innerHTML = '0s';
+    
   } else if (g_gameWon) {
-    let timeElapsed = (g_seconds - g_gameStartTime).toFixed(1);
-    gameElement.innerHTML = ` VICTORY! All TNT defused in ${timeElapsed}s! Press G to play again.`;
+    let timeElapsed = g_victoryTime.toFixed(1);
+    
+    gameElement.innerHTML = `VICTORY! All TNT defused in ${timeElapsed}s. Press G to play again.`;
+    gameElement.className = 'victory';
     gameElement.style.color = 'gold';
     gameElement.style.fontSize = '32px';
+    
+    if (gameStateDisplay) {
+      gameStateDisplay.innerHTML = 'VICTORY';
+      gameStateDisplay.style.color = 'gold';
+    }
+    if (tntCountElement) {
+      tntCountElement.innerHTML = '0/0';
+      tntCountElement.style.color = 'gold';
+    }
+    if (timeRemainingElement) {
+      timeRemainingElement.innerHTML = '0s';
+      timeRemainingElement.style.color = 'gold';
+    }
+    
   } else {
     let timeRemaining = Math.max(0, g_gameTimeLimit - (g_seconds - g_gameStartTime));
-    gameElement.innerHTML = `TNT Remaining: ${g_tntRemaining}/${g_tntTotal} | Time: ${timeRemaining.toFixed(0)}s | Press F to defuse`;
+    let minutes = Math.floor(timeRemaining / 60);
+    let seconds = Math.floor(timeRemaining % 60);
+    let timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    gameElement.innerHTML = `TNT Remaining: ${g_tntRemaining}/${g_tntTotal} | Time: ${timeString} | Press F to defuse`;
+    gameElement.className = '';
     gameElement.style.fontSize = '24px';
+    
+    if (gameStateDisplay) {
+      gameStateDisplay.innerHTML = 'In Progress';
+      gameStateDisplay.style.color = '#ffaa00';
+    }
+    if (tntCountElement) {
+      tntCountElement.innerHTML = `${g_tntRemaining}/${g_tntTotal}`;
+      tntCountElement.style.color = '#ffaa00';
+    }
+    if (timeRemainingElement) {
+      timeRemainingElement.innerHTML = timeString;
+    }
     
     if (timeRemaining <= 10) {
       gameElement.style.color = 'red';
+      gameElement.style.animation = 'pulse 1s infinite';
+      if (timeRemainingElement) {
+        timeRemainingElement.style.color = 'red';
+        timeRemainingElement.style.fontWeight = 'bold';
+      }
     } else if (timeRemaining <= 30) {
       gameElement.style.color = 'orange';
+      gameElement.style.animation = 'none';
+      if (timeRemainingElement) {
+        timeRemainingElement.style.color = 'orange';
+        timeRemainingElement.style.fontWeight = 'normal';
+      }
     } else {
       gameElement.style.color = 'lime';
+      gameElement.style.animation = 'none';
+      if (timeRemainingElement) {
+        timeRemainingElement.style.color = 'lime';
+        timeRemainingElement.style.fontWeight = 'normal';
+      }
     }
     
     if (timeRemaining <= 0 && !g_gameWon) {
-      gameElement.innerHTML = ' GAME OVER! Time\'s up! Press G to try again.';
+      gameElement.innerHTML = 'GAME OVER! Time expired. Press G to try again.';
+      gameElement.className = 'gameOver';
       gameElement.style.color = 'red';
       gameElement.style.fontSize = '32px';
+      
+      g_flashIntensity = 1.0;
+      
+      if (gameStateDisplay) {
+        gameStateDisplay.innerHTML = 'GAME OVER';
+        gameStateDisplay.style.color = 'red';
+      }
+      if (tntCountElement) {
+        tntCountElement.innerHTML = `${g_tntRemaining}/${g_tntTotal}`;
+        tntCountElement.style.color = 'red';
+      }
+      if (timeRemainingElement) {
+        timeRemainingElement.innerHTML = '0:00';
+        timeRemainingElement.style.color = 'red';
+      }
+      
       g_gameStarted = false;
     }
   }
@@ -700,7 +924,7 @@ function deleteBlock() {
 }
 
 function drawTriangle3DUVBatch(vertices, uv) {
-  var n = vertices.length / 3; // Number of vertices
+  var n = vertices.length / 3; 
 
   // Create a buffer object for vertices
   var vertexBuffer = gl.createBuffer();
@@ -733,6 +957,77 @@ function drawTriangle3DUVBatch(vertices, uv) {
   gl.drawArrays(gl.TRIANGLES, 0, n);
 }
 
+function renderTNTParticles() {
+  if (!g_gameStarted || g_gameWon) return;
+  
+  for (let tnt of g_tntBlocks) {
+    if (!tnt.active) continue;
+    
+    let worldX = tnt.x - 16;
+    let worldZ = tnt.z - 16;
+    
+    let camX = g_camera.eye.elements[0];
+    let camZ = g_camera.eye.elements[2];
+    let distSq = (worldX - camX) * (worldX - camX) + (worldZ - camZ) * (worldZ - camZ);
+    if (distSq > 200) continue; 
+    
+    for (let i = 0; i < 8; i++) {
+      let angle = g_seconds * 3 + i * (Math.PI * 2 / 8);
+      let heightOffset = Math.sin(g_seconds * 2 + i) * 0.4;
+      let radius = 0.9;
+      
+      let offsetX = Math.cos(angle) * radius;
+      let offsetZ = Math.sin(angle) * radius;
+      
+      let particle = new Cube();
+      
+      if (i % 3 === 0) {
+        particle.color = [1.0, 0.1, 0.0, 0.9]; 
+      } else if (i % 3 === 1) {
+        particle.color = [1.0, 0.3, 0.0, 0.9]; 
+      } else {
+        particle.color = [0.9, 0.0, 0.0, 0.9];
+      }
+      
+      particle.textureNum = -2; 
+      particle.texColorWeight = 0.0;
+      
+      particle.matrix = new Matrix4()
+        .translate(worldX + 0.5, 0.5 + heightOffset, worldZ + 0.5)
+        .translate(offsetX, 0, offsetZ)
+        .scale(0.18, 0.18, 0.18);
+      
+      particle.render();
+      
+      if (i % 2 === 0) {
+        let particle2 = new Cube();
+        particle2.color = [1.0, 0.2, 0.0, 0.8];
+        particle2.textureNum = -2;
+        
+        particle2.matrix = new Matrix4()
+          .translate(worldX + 0.5, 1.2 - heightOffset, worldZ + 0.5)
+          .translate(offsetX * 0.6, 0, offsetZ * 0.6)
+          .scale(0.12, 0.12, 0.12);
+        
+        particle2.render();
+      }
+      
+      if (i % 4 === 0) {
+        let particle3 = new Cube();
+        particle3.color = [1.0, 0.0, 0.0, 1.0]; 
+        particle3.textureNum = -2;
+        
+        particle3.matrix = new Matrix4()
+          .translate(worldX + 0.5, 0.8, worldZ + 0.5)
+          .translate(offsetX * 1.2, Math.sin(g_seconds * 5 + i) * 0.3, offsetZ * 1.2)
+          .scale(0.08, 0.08, 0.08);
+        
+        particle3.render();
+      }
+    }
+  }
+}
+
 function renderAllShapes() {
   let startTime = performance.now();
 
@@ -742,6 +1037,8 @@ function renderAllShapes() {
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMatr.elements);
 
   gl.uniformMatrix4fv(u_ViewMatrix, false, g_camera.viewMatrix.elements);
+  
+  gl.uniform1f(u_FlashIntensity, g_flashIntensity);
 
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -804,49 +1101,69 @@ function renderAllShapes() {
         }
         
         let isTNT = false;
+        let isActiveTNT = false;
         for (let tnt of g_tntBlocks) {
-          if (tnt.active && tnt.x === x && tnt.z === z && y === height - 1) {
+          if (tnt.x === x && tnt.z === z && y === height - 1) {
             isTNT = true;
+            isActiveTNT = tnt.active;
             break;
           }
         }
 
-        let textureChoice = isTNT ? 3 : (((x * 73 + z * 37 + y * 11) % 2) === 0 ? 1 : 2);
+        let textureChoice;
+        if (isTNT && isActiveTNT) {
+          textureChoice = 3;
+        } else {
+          textureChoice = (((x * 73 + z * 37 + y * 11) % 2) === 0 ? 1 : 2);
+        }
 
         if (!g_reusableCube) {
           g_reusableCube = new Cube();
         }
 
-        if (isTNT) {
+        if (isTNT && isActiveTNT) {
+          let pulseFactor = 0.9 + Math.sin(g_seconds * 5) * 0.15;
+          
+          let redPulse = 1.0;
+          let greenPulse = 0.1 + Math.sin(g_seconds * 8) * 0.15;
+          
           g_reusableCube.textureNum = 3;
-          g_reusableCube.color[0] = 1.0;
-          g_reusableCube.color[1] = 0.2;
+          g_reusableCube.color[0] = redPulse;
+          g_reusableCube.color[1] = greenPulse;
           g_reusableCube.color[2] = 0.0;
           g_reusableCube.color[3] = 1.0;
+          
+          g_reusableCube.matrix.setIdentity();
+          g_reusableCube.matrix.translate(worldX, y - 0.75, worldZ);
+          g_reusableCube.matrix.translate(0.5, 0.5, 0.5);
+          g_reusableCube.matrix.scale(pulseFactor, pulseFactor, pulseFactor);
+          g_reusableCube.matrix.translate(-0.5, -0.5, -0.5);
         } else if (textureChoice === 2) {
           g_reusableCube.textureNum = 2;
           g_reusableCube.color[0] = 0.8;
           g_reusableCube.color[1] = 0.9;
           g_reusableCube.color[2] = 1.0;
           g_reusableCube.color[3] = 1.0;
+          g_reusableCube.matrix.setIdentity();
+          g_reusableCube.matrix.translate(worldX, y - 0.75, worldZ);
         } else {
           g_reusableCube.textureNum = 1;
           g_reusableCube.color[0] = 0.6;
           g_reusableCube.color[1] = 0.5;
           g_reusableCube.color[2] = 0.4;
           g_reusableCube.color[3] = 1.0;
+          g_reusableCube.matrix.setIdentity();
+          g_reusableCube.matrix.translate(worldX, y - 0.75, worldZ);
         }
 
         g_reusableCube.texColorWeight = 0.9;  
-        g_reusableCube.matrix.setIdentity();
-        g_reusableCube.matrix.translate(worldX, y - 0.75, worldZ);
         
         let cubeData = g_reusableCube.renderFast();
         
         let verticesCopy = new Float32Array(cubeData.vertices);
         let uvCopy = new Float32Array(cubeData.uv);
         
-        if (isTNT) {
+        if (isTNT && isActiveTNT) {
           texture3Cubes.push({
             vertices: verticesCopy,
             uv: uvCopy,
@@ -939,8 +1256,19 @@ function renderAllShapes() {
     drawTriangle3DUVBatch(totalVertices, totalUV);
   }
   
-  // Update game UI
+  if (g_gameWon) {
+    updateFireworks();
+    renderFireworks();
+  }
+  
+  renderTNTParticles();
+  
   updateGameUI();
+  
+  let blocksElement = document.getElementById('blocksRendered');
+  if (blocksElement) {
+    blocksElement.innerHTML = cubesRendered;
+  }
   
   // Performance tracking
   let endTime = performance.now();
@@ -954,7 +1282,7 @@ function renderAllShapes() {
     
     let fpsElement = document.getElementById('fps');
     if (fpsElement) {
-      fpsElement.innerHTML = `FPS: ${g_fps} | Render: ${renderTime.toFixed(1)}ms | Cubes: ${cubesRendered}`;
+      fpsElement.innerHTML = `FPS: ${g_fps} | Render: ${renderTime.toFixed(1)}ms`;
       if (g_fps >= 30) {
         fpsElement.style.color = 'green';
       } else if (g_fps >= 15) {
