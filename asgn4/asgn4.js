@@ -452,27 +452,17 @@ function addActionsForHTMLUI() {
     if (ev.buttons == 1) { g_lightPos[2] = this.value / 10; renderAllShapes(); }
   });
 
-  // Light color slider (hue slider 0-360)
-  document.getElementById('lightColorSlide').addEventListener('mousemove', function(ev) {
-    if (ev.buttons == 1) {
-      // Convert hue to RGB
-      let h = this.value / 360.0;
-      let r, g, b;
-      let i = Math.floor(h * 6);
-      let f = h * 6 - i;
-      let q = 1 - f;
-      switch(i % 6) {
-        case 0: r=1; g=f; b=0; break;
-        case 1: r=q; g=1; b=0; break;
-        case 2: r=0; g=1; b=f; break;
-        case 3: r=0; g=q; b=1; break;
-        case 4: r=f; g=0; b=1; break;
-        case 5: r=1; g=0; b=q; break;
-      }
-      g_lightColor = [r, g, b];
-      renderAllShapes();
-    }
-  });
+  // Light color R/G/B sliders
+  function updateLightColor() {
+    let r = document.getElementById('lightColorR').value / 255.0;
+    let g = document.getElementById('lightColorG').value / 255.0;
+    let b = document.getElementById('lightColorB').value / 255.0;
+    g_lightColor = [r, g, b];
+    renderAllShapes();
+  }
+  document.getElementById('lightColorR').addEventListener('input', updateLightColor);
+  document.getElementById('lightColorG').addEventListener('input', updateLightColor);
+  document.getElementById('lightColorB').addEventListener('input', updateLightColor);
 }
 
 function initTextures(gl, n) {
