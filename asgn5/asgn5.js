@@ -69,6 +69,9 @@ const noseMat    = new THREE.MeshStandardMaterial({ color: 0x7799bb, metalness: 
 const stripMat   = new THREE.MeshStandardMaterial({ color: 0x00aaff, emissive: 0x0044bb, emissiveIntensity: 0.5 });
 
 let myModel = null;
+let catboxModel = null;
+let bcatModel = null;
+let greninjaModel = null;
 
 const crateMat = [
     new THREE.MeshStandardMaterial({ map: loadColorTexture('resources/images/flower-1.jpg') }),
@@ -366,6 +369,41 @@ gltfLoader.load('models/scene.gltf', (gltf) => {
     model.scale.set(10, 10, 10);
 });
 
+gltfLoader.load('models/cat_box_meme.glb', (gltf) => {
+    const model = gltf.scene;
+    catboxModel = model;
+    scene.add(model);
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.sub(center);
+    model.position.set(50, 20, 30);  
+    model.scale.set(0.3, 0.3, 0.3);       
+});
+
+gltfLoader.load('models/greninja.glb', (gltf) => {
+    const model = gltf.scene;
+    greninjaModel = model;
+    scene.add(model);
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.sub(center);
+    model.position.set(0, 20, 0);  
+    model.scale.set(20, 20, 20);       
+    model.rotation.y = 3;
+});
+
+gltfLoader.load('models/bababooey_cat.glb', (gltf) => {
+    const model = gltf.scene;
+    bcatModel = model;
+    scene.add(model);
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.sub(center);
+    model.position.set(0, 30, 30);  
+    model.scale.set(5, 5, 5);       
+});
+
+
 function makeGlowTexture(innerColor, outerColor, size) {
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -499,7 +537,8 @@ window.addEventListener('resize', () => {
     renderer.setSize(c.clientWidth, c.clientHeight);
     composer.setSize(c.clientWidth, c.clientHeight);
 });
-// Set initial aspect ratio
+
+
 const _c = document.getElementById('canvas-container');
 camera.aspect = _c.clientWidth / _c.clientHeight;
 camera.updateProjectionMatrix();
@@ -539,6 +578,14 @@ function animate(time) {
     if (myModel) {
         myModel.rotation.y += 0.03; 
 
+    }
+
+    if (catboxModel) {
+    catboxModel.rotation.y += 0.01;
+    }
+
+    if (bcatModel) {
+    bcatModel.rotation.y += 0.01;
     }
 
     crystals.forEach((c, i) => {
