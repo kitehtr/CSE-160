@@ -244,7 +244,7 @@ coreRing2.rotation.x = Math.PI / 2;
 scene.add(coreRing2);
 
 const cubes = [];
-[[-3, 1.7, 8], [-3, 2.8, 8], [3, 1.7, 8], [-3, 1.7, -10], [3, 1.7, -10]].forEach(([x, y, z]) => {
+[[-2, 1.7, 8], [-2, 2.8, 8], [2, 1.7, 8], [-2, 1.7, -10], [2, 1.7, -10]].forEach(([x, y, z]) => {
     const crate = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), crateMat);
     crate.position.set(x, y, z);
     scene.add(crate);
