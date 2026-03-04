@@ -1,14 +1,20 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 5000);
 camera.position.set(0, 8, 30);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.8;
+const container = document.getElementById('canvas-container');
+renderer.setSize(container.clientWidth, container.clientHeight);
+container.appendChild(renderer.domElement);
 
 const cubeTextureLoader = new THREE.CubeTextureLoader();
 const skyboxTexture = cubeTextureLoader.load([
@@ -29,7 +35,7 @@ const fillLight = new THREE.DirectionalLight(0x224466, 1.2);
 fillLight.position.set(-40, -20, 30);
 scene.add(fillLight);
 
-const hemisphereLight = new THREE.HemisphereLight(0x112244, 0x221100, 1.5);
+const hemisphereLight = new THREE.HemisphereLight(0x4466aa, 0x332211, 2.5);
 scene.add(hemisphereLight);
 
 const pointLight = new THREE.PointLight(0xff00ff, 80, 40);
@@ -43,7 +49,7 @@ function loadColorTexture(path) {
     return texture;
 }
 
-const metalMat   = new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.8, roughness: 0.3 });
+const metalMat   = new THREE.MeshStandardMaterial({ color: 0xaabbcc, metalness: 0.7, roughness: 0.3 });
 const glowMat    = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.6 });
 const redMat     = new THREE.MeshStandardMaterial({ color: 0xff2222 });
 const orangeMat  = new THREE.MeshStandardMaterial({ color: 0xff8800 });
@@ -55,10 +61,10 @@ const planet2Mat = new THREE.MeshStandardMaterial({ color: 0xcc4400 });
 const planet3Mat = new THREE.MeshStandardMaterial({ color: 0x8833cc });
 const planet4Mat = new THREE.MeshStandardMaterial({ color: 0x228833 });
 const planet5Mat = new THREE.MeshStandardMaterial({ color: 0xaa2244 });
-const hullMat    = new THREE.MeshStandardMaterial({ color: 0x445566, metalness: 0.9, roughness: 0.2 });
-const accentMat  = new THREE.MeshStandardMaterial({ color: 0x223344, metalness: 0.7, roughness: 0.3 });
+const hullMat    = new THREE.MeshStandardMaterial({ color: 0x6688aa, metalness: 0.7, roughness: 0.3 });
+const accentMat  = new THREE.MeshStandardMaterial({ color: 0x446688, metalness: 0.6, roughness: 0.4 });
 const engineMat  = new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff3300, emissiveIntensity: 1.2 });
-const noseMat    = new THREE.MeshStandardMaterial({ color: 0x556677, metalness: 0.95, roughness: 0.1 });
+const noseMat    = new THREE.MeshStandardMaterial({ color: 0x7799bb, metalness: 0.8, roughness: 0.2 });
 
 const stripMat   = new THREE.MeshStandardMaterial({ color: 0x00aaff, emissive: 0x0044bb, emissiveIntensity: 0.5 });
 
@@ -84,16 +90,18 @@ sun.position.set(0, -4, 150);
 scene.add(sun);
 
 const coronaMat = new THREE.MeshStandardMaterial({
-    color: 0xff8800,
-    emissive: 0xff5500,
-    emissiveIntensity: 3.0,
+    color: 0xff9900,
+    emissive: 0xff6600,
+    emissiveIntensity: 2.0,
     transparent: true,
-    opacity: 0.7,
+    opacity: 0.18,
+    side: THREE.DoubleSide,
 });
+const coronaRings = [];
 [65, 75, 88].forEach((r) => {
-    const corona = new THREE.Mesh(new THREE.TorusGeometry(r, 1.5, 8, 64), coronaMat);
+    const corona = new THREE.Mesh(new THREE.TorusGeometry(r, 1.2, 8, 64), coronaMat);
     corona.position.set(0, -4, 150);
-    corona.rotation.x = Math.PI / 4;
+    coronaRings.push(corona);
     scene.add(corona);
 });
 
@@ -331,10 +339,12 @@ const asteroids = [];
 [
     [22, 10, -18], [-25, 8, -12], [28, -3, -25],
     [-15, 14, -30], [12, 16, -22], [-30, 3, -20],
-    [18, 20, -35]
+    [18, 20, -35], [40, 5, -40], [-40, 12, -50],
+    [55, -5, -60], [-50, 18, -70]
 ].forEach(([x, y, z]) => {
+    const size = 0.6 + Math.random() * 0.8; 
     const asteroid = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(0.4 + Math.random() * 0.5, 0),
+        new THREE.IcosahedronGeometry(size, 0),
         moonMat
     );
     asteroid.position.set(x, y, z);
@@ -355,6 +365,144 @@ gltfLoader.load('models/scene.gltf', (gltf) => {
     model.position.set(-20, 20, 20);
     model.scale.set(10, 10, 10);
 });
+
+function makeGlowTexture(innerColor, outerColor, size) {
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    gradient.addColorStop(0,   innerColor);
+    gradient.addColorStop(0.3, innerColor);
+    gradient.addColorStop(1,   outerColor);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+    return new THREE.CanvasTexture(canvas);
+}
+
+const outerGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeGlowTexture('rgba(255,200,80,0.25)', 'rgba(255,100,0,0)', 256),
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+}));
+outerGlow.position.set(0, -4, 150);
+outerGlow.scale.set(300, 300, 1);
+scene.add(outerGlow);
+
+const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeGlowTexture('rgba(255,240,150,0.6)', 'rgba(255,160,0,0)', 256),
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+}));
+halo.position.set(0, -4, 150);
+halo.scale.set(160, 160, 1);
+scene.add(halo);
+
+const coreGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeGlowTexture('rgba(255,255,220,0.9)', 'rgba(255,200,50,0)', 256),
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+}));
+coreGlow.position.set(0, -4, 150);
+coreGlow.scale.set(80, 80, 1);
+scene.add(coreGlow);
+
+const STAR_COUNT = 6000;
+const starPositions = new Float32Array(STAR_COUNT * 3);
+const starSpeeds = new Float32Array(STAR_COUNT);
+
+for (let i = 0; i < STAR_COUNT; i++) {
+    starPositions[i * 3]     = (Math.random() - 0.5) * 800;
+    starPositions[i * 3 + 1] = (Math.random() - 0.5) * 800;
+    starPositions[i * 3 + 2] = (Math.random() - 0.5) * 800;
+    starSpeeds[i] = 0.02 + Math.random() * 0.08;
+}
+
+const starGeometry = new THREE.BufferGeometry();
+starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+
+const starMaterial = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 0.4,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0.85,
+});
+
+const starField = new THREE.Points(starGeometry, starMaterial);
+scene.add(starField);
+
+const icePlanetMat = new THREE.MeshStandardMaterial({
+    color: 0x88ddff, metalness: 0.1, roughness: 0.6,
+});
+const icePlanet = new THREE.Mesh(new THREE.SphereGeometry(9, 32, 32), icePlanetMat);
+icePlanet.position.set(-60, 15, -100);
+scene.add(icePlanet);
+
+const iceRing1Mat = new THREE.MeshStandardMaterial({
+    color: 0xaaeeff, emissive: 0x4499cc, emissiveIntensity: 0.5,
+    transparent: true, opacity: 0.7, side: THREE.DoubleSide,
+});
+const iceRing1 = new THREE.Mesh(new THREE.TorusGeometry(15, 1.2, 8, 64), iceRing1Mat);
+iceRing1.position.set(-60, 15, -100);
+iceRing1.rotation.x = Math.PI / 2.2;
+scene.add(iceRing1);
+
+const iceRing2Mat = new THREE.MeshStandardMaterial({
+    color: 0xffffff, emissive: 0xaaddff, emissiveIntensity: 0.8,
+    transparent: true, opacity: 0.5, side: THREE.DoubleSide,
+});
+const iceRing2 = new THREE.Mesh(new THREE.TorusGeometry(19, 0.6, 8, 64), iceRing2Mat);
+iceRing2.position.set(-60, 15, -100);
+iceRing2.rotation.x = Math.PI / 2.2;
+scene.add(iceRing2);
+
+const iceMoon = new THREE.Mesh(new THREE.SphereGeometry(1.5, 16, 16), moonMat);
+iceMoon.position.set(-35, 15, -100);
+scene.add(iceMoon);
+
+const exhaustFlames = [];
+[-3.5, 0, 3.5].forEach((x) => {
+    const flameMat = new THREE.MeshStandardMaterial({
+        color: 0xff4400, emissive: 0xff2200, emissiveIntensity: 2.0,
+        transparent: true, opacity: 0.85,
+    });
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(1.1, 5, 12), flameMat);
+    flame.rotation.x = -Math.PI / 2;
+    flame.position.set(x, -4, 20);
+    scene.add(flame);
+    exhaustFlames.push(flame);
+
+    const coreFlameMat = new THREE.MeshStandardMaterial({
+        color: 0xffff88, emissive: 0xffee00, emissiveIntensity: 4.0,
+        transparent: true, opacity: 0.9,
+    });
+    const coreFlame = new THREE.Mesh(new THREE.ConeGeometry(0.5, 3.5, 12), coreFlameMat);
+    coreFlame.rotation.x = -Math.PI / 2;
+    coreFlame.position.set(x, -4, 20.5);
+    scene.add(coreFlame);
+    exhaustFlames.push(coreFlame);
+});
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    0.28,  
+    0.5,   
+    0.85  
+);
+composer.addPass(bloomPass);
+
+window.addEventListener('resize', () => {
+    const c = document.getElementById('canvas-container');
+    camera.aspect = c.clientWidth / c.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(c.clientWidth, c.clientHeight);
+    composer.setSize(c.clientWidth, c.clientHeight);
+});
+// Set initial aspect ratio
+const _c = document.getElementById('canvas-container');
+camera.aspect = _c.clientWidth / _c.clientHeight;
+camera.updateProjectionMatrix();
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -401,7 +549,19 @@ function animate(time) {
     artifact.rotation.y  = t * 0.5;
     artifact.position.y  = 7 + Math.sin(t) * 0.4;
 
-    sun.scale.setScalar(1 + Math.sin(t * 0.5) * 0.02);
+    sunMat.emissiveIntensity = 4.0 + Math.sin(t * 0.8) * 2.0;
+    sunLight.intensity = 6.0 + Math.sin(t * 0.8) * 3.0;
+    const pulse = (Math.sin(t * 0.8) + 1) / 2; 
+    sunLight.color.setRGB(1.0, 0.85 + pulse * 0.1, 0.6 + pulse * 0.2);
+
+    const glowPulse = 1 + Math.sin(t * 0.7) * 0.1;
+    outerGlow.scale.set(300 * glowPulse, 300 * glowPulse, 1);
+    halo.scale.set(160 * glowPulse, 160 * glowPulse, 1);
+    coreGlow.scale.set(80 * glowPulse, 80 * glowPulse, 1);
+
+    coronaRings.forEach((ring, i) => {
+        ring.rotation.z = t * (0.1 + i * 0.03);
+    });
 
     moon1.position.x = -80 + Math.cos(t * 0.4) * 14;
     moon1.position.z = -80 + Math.sin(t * 0.4) * 14;
@@ -417,8 +577,28 @@ function animate(time) {
         a.rotation.y = t * 0.5 + i;
     });
 
+    const positions = starField.geometry.attributes.position.array;
+    for (let i = 0; i < STAR_COUNT; i++) {
+        positions[i * 3 + 2] += starSpeeds[i];
+        if (positions[i * 3 + 2] > 400) {
+            positions[i * 3 + 2] = -400;
+        }
+    }
+    starField.geometry.attributes.position.needsUpdate = true;
+
+    iceRing1.rotation.z = t * 0.1;
+    iceRing2.rotation.z = -t * 0.08;
+    iceMoon.position.x = -60 + Math.cos(t * 0.5) * 25;
+    iceMoon.position.z = -100 + Math.sin(t * 0.5) * 25;
+
+    exhaustFlames.forEach((flame, i) => {
+        const flicker = 1 + Math.sin(t * 15 + i * 2.1) * 0.15 + Math.random() * 0.1;
+        flame.scale.set(flicker, flicker + Math.random() * 0.2, flicker);
+        flame.material.opacity = 0.75 + Math.sin(t * 12 + i) * 0.2;
+    });
+
     handleMovement();
     controls.update();
-    renderer.render(scene, camera);
+    composer.render();
 }
 renderer.setAnimationLoop(animate);

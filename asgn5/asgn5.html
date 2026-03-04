@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Keith Tran - Assignment 5 </title>
+    <title>Keith Tran - Assignment 5</title>
 
     <script type="importmap">
     {
@@ -15,12 +15,125 @@
     </script>
 
     <style>
-    * { margin: 0; padding: 0; }
-    body { overflow: hidden; }
-    canvas { display: block; }
-</style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #000;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            width: 100%;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #canvas-container canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        #info-panel {
+            flex-shrink: 0;
+            background: #080818;
+            border-top: 2px solid #0044bb;
+            padding: 12px 28px;
+            display: flex;
+            gap: 16px;
+        }
+
+        .box {
+            background: #0d0d2a;
+            border: 1px solid #0044bb;
+            border-radius: 8px;
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .box h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #00aaff;
+            flex-shrink: 0;
+        }
+
+        .box p, .box li {
+            color: #99aabb;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .box ul {
+            padding-left: 16px;
+        }
+
+        .box li strong {
+            color: #00ccff;
+        }
+
+        #wow-box {
+            flex: 1.2;
+        }
+
+        #credits-box {
+            flex: 0.9;
+        }
+
+        #controls-box {
+            flex: 0.7;
+        }
+    </style>
 </head>
 <body>
-        <script type="module" src="asgn5.js"></script>
+    <div id="canvas-container"></div>
+
+    <div id="info-panel">
+        <div class="box" id="wow-box">
+            <h3>✦ Wow Point Features</h3>
+            <ul>
+                <li><strong>Animated Starfield:</strong> 6,000 BufferGeometry particles each with a randomized drift speed, wrapping infinitely.</li>
+                <li><strong>Animated Engine Exhaust Flames: </strong>Flickering emissive cone meshes</li>
+                <li><strong>UnrealBloomPass: </strong>Post-processing HDR bloom via EffectComposer, making all emissive objects glow.</li>
+                <li><strong> NOTE: textured cube is on the spaceship where you initally load in, 3D model is above the spaceship as well(Oiiaioooooiai Cat)</strong></li>
+            </ul>
+        </div>
+
+        <div class="box" id="credits-box">
+            <h3> Model Credits</h3>
+            <ul>
+                <li style="font-size:10px;line-height:1.5;">
+                <strong>Oiiaioooooiai Cat</strong> by <a href="https://sketchfab.com/Zhuier" target="_blank" rel="noopener noreferrer" style="color:#00aaff; text-decoration:none;">Zhuier</a><br>
+                <a href="https://sketchfab.com/3d-models/oiiaioooooiai-cat-30d27bf7fb224849b76e208a6eccdb36" target="_blank" rel="noopener noreferrer" style="color:#00aaff; text-decoration:none;">sketchfab.com</a> : License: CC-BY-4.0
+                </li>
+               
+                <li style="font-size:10px;line-height:1.5;">
+                <strong>Skybox</strong> by <a href="https://opengameart.org/content/space-nebulas-skybox" target="_blank" rel="noopener noreferrer" style="color:#00aaff; text-decoration:none;">OpenGameArt</a>: 
+                <a href="https://opengameart.org/content/space-nebulas-skybox" target="_blank" rel="noopener noreferrer" style="color:#00aaff; text-decoration:none;">Space Nebulas Skybox</a>
+            </li>
+            </ul>
+        </div>
+
+        <div class="box" id="controls-box">
+            <h3> Controls</h3>
+            <ul>
+                <li><strong>Hold left and right click to move camera</strong>  </li>
+                <li><strong>Scroll to zoom in and out</strong>  </li>
+                <li><strong>Use WASD to move around</strong> </li>
+            </ul>
+        </div>
+    </div>
+
+    <script type="module" src="asgn5.js"></script>
 </body>
 </html>
